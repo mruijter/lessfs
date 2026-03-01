@@ -64,6 +64,7 @@
 #include "lib_repl.h"
 #include "lib_bdb.h"
 
+#ifdef BERKELEYDB
 DB *dbb;
 DB *dbu;
 DB *dbp;
@@ -72,6 +73,7 @@ DB *dbs;
 DB *dbdta;
 DB *dbdirent;
 DB *freelist;
+#endif
 
 DB_ENV *envp;
 const char **data_name;

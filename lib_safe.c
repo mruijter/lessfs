@@ -141,7 +141,7 @@ int s_pread(int fd, void *buf, size_t len, off_t off)
             return total;
         }
         total += thistime;
-        thisoffset += total;
+        thisoffset += thistime;
     }
     return total;
 }
@@ -189,7 +189,7 @@ int s_pwrite(int fd, const void *buf, size_t len, off_t off)
             return thistime;    /* always an error for writes */
         }
         total += thistime;
-        thisoff += total;
+        thisoff += thistime;
     }
     return total;
 }

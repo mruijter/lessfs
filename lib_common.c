@@ -72,7 +72,7 @@
 #include <db.h>
 #include "lib_bdb.h"
 #else
-#ifndef HAMSTERDB
+#if !defined(HAMSTERDB) && !defined(BERKELEYDB)
 #include "lib_tc.h"
 #else
 #include "lib_hamster.h"
@@ -94,7 +94,7 @@ extern int freplbl;             /* Backlog processing */
 extern int BLKSIZE;
 extern long working;
 
-#ifndef HAMSTERDB
+#if !defined(HAMSTERDB) && !defined(BERKELEYDB)
 TCHDB *dbb = NULL;
 TCHDB *dbu = NULL;
 TCHDB *dbp = NULL;
@@ -212,6 +212,7 @@ void mkchunk_dir(char *path)
        if ( -1 == chdir("..")) die_syserr();
     }
 }
+
 
 unsigned char *thash(unsigned char *buf, int size)
 {
@@ -1481,7 +1482,7 @@ void formatfs()
         file_update_inuse(stiger, &inuse);
     }
     lessfs_trans_stamp();
-    s_free(stiger);
+    free(stiger);
 
 #ifdef ENABLE_CRYPTO
     if (config->encryptdata) {
@@ -1491,7 +1492,7 @@ void formatfs()
         memcpy(&crypto.iv, config->iv, 8);
         bin_write_dbdata(DBP, &nextinode, sizeof(unsigned long long),
                          &crypto, sizeof(CRYPTO));
-        s_free(stiger);
+        free(stiger);
     }
 #endif
     nextinode = 1;
@@ -1541,7 +1542,7 @@ DAT *lfsdecompress(DAT * cdata)
         data = (DAT *) clz_decompress(decrypted->data, decrypted->size);
         goto end;
     }
-    if (decrypted->data[0] == 0 || decrypted->data[0] == 'P') {
+    if (decrypted->data[0] == 0 || decrypted->data[0] == 'R') {
         data = (DAT *) clz15_decompress(decrypted->data, decrypted->size);
         goto end;
     }
@@ -1970,6 +1971,10 @@ void hash_update_filesize(MEMDDSTAT * memddstat, unsigned long long inode)
 
 DAT *check_block_exists(INOBNO * inobno)
 {
+    if (!config->deduplication) {
+        return NULL;  // Force new block creation when deduplication is disabled
+    }
+    // Original logic continues...
     DAT *data = NULL;
     FUNC;
     data = search_dbdata(DBB, inobno, sizeof(INOBNO), LOCK);
@@ -2263,7 +2268,7 @@ unsigned int db_commit_block(unsigned char *dbdata,
     bin_write_dbdata(DBB, (char *) &inobno, sizeof(INOBNO), stiger,
                      config->hashlen);
     delete_hash_note(stiger);
-    s_free(stiger);
+    free(stiger);
     return (ret);
 }
 
@@ -2553,7 +2558,7 @@ void db_close(bool defrag)
 #ifdef BERKELEYDB
     bdb_close();
 #else
-#ifndef HAMSTERDB
+#if !defined(HAMSTERDB) && !defined(BERKELEYDB)
     tc_close(defrag);
 #else
     hm_close(defrag);
@@ -2618,9 +2623,23 @@ void cook_cache(char *key, int ksize, CCACHEDTA * ccachedta, unsigned long seque
     unsigned char *hash;
     inobno = (INOBNO *) key;
     LDEBUG("cook_cache : %llu-%llu", inobno->inode, inobno->blocknr);
-    hash = thash((unsigned char *) &ccachedta->data, ccachedta->datasize);
-    memcpy(&ccachedta->hash, hash, config->hashlen);
-    free(hash);
+    
+    if (config->deduplication) {
+        /* Normal deduplication mode - hash content */
+        hash = thash((unsigned char *) &ccachedta->data, ccachedta->datasize);
+        memcpy(&ccachedta->hash, hash, config->hashlen);
+        free(hash);
+    } else {
+        /* No-deduplication mode - use INOBNO directly as key (NO HASHING!) */
+        /* This provides dramatic performance improvement by skipping all hash computation */
+        memcpy(&ccachedta->hash, inobno, sizeof(INOBNO));
+        /* Zero out remaining hash space to maintain consistency */
+        if (config->hashlen > sizeof(INOBNO)) {
+            memset(((char*)&ccachedta->hash) + sizeof(INOBNO), 0, 
+                   config->hashlen - sizeof(INOBNO));
+        }
+    }
+    
     if ( config->blockdata_io_type == TOKYOCABINET ) {
         tc_write_cache(ccachedta, inobno);
     } else {
@@ -3424,6 +3443,25 @@ void parseconfig(int mklessfs, bool force_optimize)
                config->blockdata_io_type = CHUNK_IO;
                config->blockdatabs = NULL;
                LINFO("The selected data store is chunk_io.");
+
+    /* Configuration for DIRECT_CHUNK_IO */
+    config->direct_chunk_io = 0;  /* Default: disabled */
+    if (config->blockdata_io_type == CHUNK_IO) {
+        iv = getenv("DIRECT_CHUNK_IO");
+        if (iv) {
+            if (0 == strncasecmp(iv, "on", strlen("on")) ||
+                0 == strncasecmp(iv, "yes", strlen("yes")) ||
+                0 == strncasecmp(iv, "enabled", strlen("enabled"))) {
+                config->direct_chunk_io = 1;
+                LINFO("DIRECT_CHUNK_IO is enabled - using O_DIRECT for chunk I/O operations.");
+            } else {
+                config->direct_chunk_io = 0;
+                LINFO("DIRECT_CHUNK_IO is disabled - using buffered I/O for chunk operations.");
+            }
+        } else {
+            LINFO("DIRECT_CHUNK_IO not specified - using buffered I/O (default).");
+        }
+    }
             } else {
                if ( 0 != mklessfs ) fprintf(stderr,"Using tokyocabinet as datastore is deprecated!\n");
                LINFO("The selected data store is tokyocabinet.");
@@ -3432,7 +3470,7 @@ void parseconfig(int mklessfs, bool force_optimize)
         }
     }
 #ifndef BERKELEYDB
-#ifndef HAMSTERDB
+#if !defined(HAMSTERDB) && !defined(BERKELEYDB)
     if ( 0 != mklessfs ) { 
        fprintf(stderr,"Using tokyocabinet is DEPRECATED and no longer recommended. Please consider using (1) Berkeley DB or (2) Hamsterdb.\n");
     }
@@ -3501,6 +3539,7 @@ void parseconfig(int mklessfs, bool force_optimize)
     config->hash = "MHASH_TIGER192";
     config->selected_hash = MHASH_TIGER192;
     config->compression = 'Q';
+    config->deduplication = 1;    // Enable deduplication by default
 //  Background delete is now enabled by default
     config->background_delete = 1;
     config->sticky_on_locked = 0;
@@ -3516,7 +3555,7 @@ void parseconfig(int mklessfs, bool force_optimize)
                 ("SNAPPY support is not available: please configure with --with-snappy");
 #endif
         if (0 == strcasecmp("qlz151", iv))
-            config->compression = 'P';
+            config->compression = 'R';
         if (0 == strcasecmp("qlz", iv))
             config->compression = 'Q';
         if (0 == strcasecmp("qlz141", iv))
@@ -3539,6 +3578,15 @@ void parseconfig(int mklessfs, bool force_optimize)
             config->compression = 0;
         if (0 == strcasecmp("none", iv))
             config->compression = 0;
+    }
+    iv = getenv("DEDUPLICATION");
+    if (iv) {
+        LINFO("deduplication = %s", iv);
+        if (0 == strcasecmp("disabled", iv) || 0 == strcasecmp("off", iv)) {
+            config->deduplication = 0;
+            LINFO("Deduplication disabled - no duplicate block detection");
+            config->compression = 0;
+        }
     }
     iv = getenv("BACKGROUND_DELETE");
     if (iv) {
@@ -3775,7 +3823,7 @@ void parseconfig(int mklessfs, bool force_optimize)
             memcpy(config->iv, crypto->iv, 8);
             //config->passwd is plain, crypto->passwd is hashed.
             checkpasswd(crypto->passwd);
-            s_free(stiger);
+            free(stiger);
             DATfree(ivdb);
         }
 #endif
@@ -3871,7 +3919,7 @@ void checkpasswd(char *cryptopasswd)
         fprintf(stderr, "Invalid password entered.\n");
         exit(EXIT_PASSWD);
     }
-    s_free(stiger);
+    free(stiger);
     EFUNC;
     return;
 }

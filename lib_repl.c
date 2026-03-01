@@ -79,18 +79,19 @@ int rrepl;
 extern int BLKSIZE;
 extern unsigned long long nextoffset;
 
-unsigned char *crc32(unsigned char *buf, int size, int thread_number)
+unsigned char *crc32(unsigned char *buf, int size,
+                     int thread_number)
 {
-    MHASH td[MAX_ALLOWED_THREADS];
-    unsigned char *hash[thread_number];
+    MHASH td;
+    unsigned char *hash;
 
-    td[thread_number] = mhash_init(MHASH_CRC32);
-    if (td[thread_number] == MHASH_FAILED)
+    td = mhash_init(MHASH_CRC32);
+    if (td == MHASH_FAILED)
         exit(1);
 
-    mhash(td[thread_number], buf, size);
-    hash[thread_number] = mhash_end(td[thread_number]);
-    return hash[thread_number];
+    mhash(td, buf, size);
+    hash = mhash_end(td);
+    return hash;
 }
 
 int check_abort()

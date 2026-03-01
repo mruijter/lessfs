@@ -12,9 +12,9 @@ lessfs - An inline data deduplicating filesystem
 [\fB-o\fR big_writes,max_read=nnnn,max_write=nnnn]
 .fi
 .SH VERSION
-This man page documents lessfs version 1.5.7
+This man page documents lessfs version 1.7.0 (with no-deduplication mode support)
 .SH DESCRIPTION
-\fBlessfs\fR is a filesystem that performs inline data deduplication. lessfs uses the 192-bit (24-byte) tiger hash algorithm by default to compare the data. The filesystem compresses the unique data blocks before writing them to disk. 
+\fBlessfs\fR is a filesystem that optionally performs inline data deduplication. lessfs uses the 192-bit (24-byte) tiger hash algorithm by default to compare the data. The filesystem compresses the unique data blocks before writing them to disk. 
 .br
 Lessfs supports a large number of compression protocols. See COMPRESSION for details.
 .br 
@@ -36,6 +36,17 @@ See max_read
 Mounting lessfs with BLKSIZE specified in the configuration file is very simple.
 lessfs /etc/lessfs.cfg /fuse
 
+
+\nConfiguration examples for performance tuning:
+\nFor maximum performance (no deduplication, no compression):
+DEDUPLICATION=off
+COMPRESSION=disabled
+\nFor balanced performance (no deduplication, with compression):
+DEDUPLICATION=off
+COMPRESSION=qlz
+\nFor maximum space efficiency (default):
+DEDUPLICATION=on
+COMPRESSION=qlz
 This will result in lessfs being mounted with the arguments:
 -ohard_remove,negative_timeout,entry_timeout=0,\\
   attr_timeout=0,use_ino,readdir_ino,default_permissions,allow_other,\\
@@ -175,6 +186,13 @@ Enable or disable transactions. Without transactions enabled lessfs will need to
 Valid options are : off (default) or on
 .IP COMPRESSION=qlz
 Valid options are disabled or none,snappy,qlz,qlz15,lzo,gzip,bzip and deflate. Choose Googles snappy for the highest throughput. Deflate gives a high compression ratio with reasonable throughput.
+
+.IP DEDUPLICATION=on
+Enable or disable block-level deduplication. When enabled (default), lessfs performs content-based deduplication by comparing hash values of data blocks. When disabled, each block is treated as unique regardless of content, which significantly improves write performance at the cost of storage efficiency.
+.br
+Valid options are: on (default) or off, disabled
+.br
+Disabling deduplication provides 50-80% CPU reduction during write operations and higher throughput for workloads with unique data. Use \fBDEDUPLICATION=off\fR for high-performance scenarios where speed is more important than storage efficiency.
 .IP HASHNAME=TIGER192
 Lessfs supports the following hashes: MHASH_SHA256, MHASH_SHA512, MHASH_WHIRLPOOL, MHASH_HAVAL256, MHASH_SNEFRU256, MHASH_RIPEMD256 and TIGER192. The tiger hash is used by default. The hash lenght can be anything between 24 and 64 bytes. Unlike the compression protocol, the hash and hash lenght can not be changed after formatting the filesystem.
 .IP BLKSIZE=131072

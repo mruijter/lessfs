@@ -1283,8 +1283,8 @@ void exec_clean_program()
             exit(-1);
         }
     }
-    return;
     EFUNC;
+    return;
 }
 
 /* This thread does general housekeeping.
@@ -1382,6 +1382,7 @@ void *housekeeping_worker(void *arg)
                 break;
             case 3:
                 config->nospace = RECLAIM_AGRESSIVE;
+                break;
             default:
                 break;
             }
@@ -1687,7 +1688,7 @@ void *init_worker(void *arg)
     found[count] = 0;
     while (1) {
         if (found[count] == 0) {
-            usleep(50000);
+            usleep(10000);
             if (config->replication && config->replication_role == 0
                 && 0 != strcmp(config->replication_partner_ip, "-1")) {
                 if (0 == try_replbl_lock((char *) __PRETTY_FUNCTION__)) {
@@ -1856,7 +1857,7 @@ void *lessfs_flush(void *arg)
                              die_syserr();
                          if (stbuf.st_size < config->max_backlog_size)
                              break;
-                         usleep(50000);
+                         usleep(10000);
                      }
                      release_trunc_lock();
                  }
@@ -2164,5 +2165,4 @@ int main(int argc, char *argv[])
                      "-ohard_remove,kernel_cache,negative_timeout=0,entry_timeout=0,attr_timeout=1,use_ino,readdir_ino,default_permissions,allow_other");
     s_free(argv_new);
     return fuse_main(args.argc, args.argv, &lessfs_oper, NULL);
-    return (res);
 }

@@ -47,6 +47,7 @@ struct configdata {
     char *hash;
     char *lfsstats;
     unsigned char compression;
+    unsigned char deduplication;
     unsigned char *iv;
     unsigned char *passwd;
     unsigned long long cachesize;
@@ -85,10 +86,11 @@ struct configdata {
     unsigned long hamsterdb_cachesize;
     unsigned long max_backlog_size;
 // Sleep utime in the truncation loop.
+    int direct_chunk_io;       // Enable O_DIRECT for chunk I/O operations
 // Counter is increase by normal ops, decreased by truncation.
 // (background) Truncation will therefore become slower when other tasks are running.
 };
-struct configdata *config;
+extern struct configdata *config;
 
 int read_s_cfg(char *cfgfile, char *value, int size);
 int read_m_cfg(char *cfgfile, char *value, char *value2, int size);

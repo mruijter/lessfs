@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.01)
-AC_INIT(lessfs, 1.5.8, bugs@lessfs.com)
+AC_INIT(lessfs, 1.7.0, bugs@lessfs.com)
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_SRCDIR([listdb.c])
 AC_CONFIG_HEADER([config.h])

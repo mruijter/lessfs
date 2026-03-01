@@ -34,6 +34,8 @@
 #include "lib_str.h"
 #include "retcodes.h"
 
+struct configdata *config;
+
 int r_env_cfg(char *configfile)
 {
     FILE *config;

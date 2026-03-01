@@ -126,6 +126,9 @@
 /* Define to 1 if you have the `setenv' function. */
 #undef HAVE_SETENV
 
+/* Define to 1 if you have the <snappy-c.h> header file. */
+#undef HAVE_SNAPPY_C_H
+
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
 
@@ -272,6 +275,9 @@
 
 /* Define to the type of arg 5 for `select'. */
 #undef SELECT_TYPE_ARG5
+
+/* Define if you want to enable SNAPPY compression */
+#undef SNAPPY
 
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
