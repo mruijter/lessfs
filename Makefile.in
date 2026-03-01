@@ -107,62 +107,57 @@ CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" \
 	"$(DESTDIR)$(man1dir)"
 PROGRAMS = $(bin_PROGRAMS) $(sbin_PROGRAMS)
-am_lessfs_OBJECTS = \
-	lessfs-lib_qlz15.$(OBJEXT) lessfs-lib_common.$(OBJEXT) \
-	lessfs-lib_lzo.$(OBJEXT) lessfs-lessfs.$(OBJEXT) \
-	lessfs-lib_crypto.$(OBJEXT) lessfs-lib_safe.$(OBJEXT) \
-	lessfs-lib_tc.$(OBJEXT) lessfs-file_io.$(OBJEXT) \
-	lessfs-lib_cfg.$(OBJEXT) lessfs-lib_str.$(OBJEXT) \
-	lessfs-lib_net.$(OBJEXT) lessfs-lib_qlz.$(OBJEXT) \
-	lessfs-lib_repl.$(OBJEXT) lessfs-lib_bdb.$(OBJEXT) \
-	lessfs-lib_snappy.$(OBJEXT)
+am_lessfs_OBJECTS = lessfs-lib_qlz15.$(OBJEXT) \
+	lessfs-lib_common.$(OBJEXT) lessfs-lib_lzo.$(OBJEXT) \
+	lessfs-lessfs.$(OBJEXT) lessfs-lib_crypto.$(OBJEXT) \
+	lessfs-lib_safe.$(OBJEXT) lessfs-lib_tc.$(OBJEXT) \
+	lessfs-file_io.$(OBJEXT) lessfs-lib_cfg.$(OBJEXT) \
+	lessfs-lib_str.$(OBJEXT) lessfs-lib_net.$(OBJEXT) \
+	lessfs-lib_qlz.$(OBJEXT) lessfs-lib_repl.$(OBJEXT) \
+	lessfs-lib_bdb.$(OBJEXT) lessfs-lib_snappy.$(OBJEXT)
 lessfs_OBJECTS = $(am_lessfs_OBJECTS)
 lessfs_LDADD = $(LDADD)
 lessfs_LINK = $(CCLD) $(lessfs_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-am_lessfsck_OBJECTS = \
-	lessfsck-lib_common.$(OBJEXT) lessfsck-lib_lzo.$(OBJEXT) \
-	lessfsck-lib_qlz15.$(OBJEXT) lessfsck-file_io.$(OBJEXT) \
-	lessfsck-lessfsck.$(OBJEXT) lessfsck-lib_crypto.$(OBJEXT) \
-	lessfsck-lib_safe.$(OBJEXT) lessfsck-lib_tc.$(OBJEXT) \
-	lessfsck-lib_cfg.$(OBJEXT) lessfsck-lib_str.$(OBJEXT) \
-	lessfsck-lib_net.$(OBJEXT) lessfsck-lib_qlz.$(OBJEXT) \
-	lessfsck-lib_repl.$(OBJEXT) lessfsck-lib_bdb.$(OBJEXT) \
-	lessfsck-lib_snappy.$(OBJEXT)
+am_lessfsck_OBJECTS = lessfsck-lib_common.$(OBJEXT) \
+	lessfsck-lib_lzo.$(OBJEXT) lessfsck-lib_qlz15.$(OBJEXT) \
+	lessfsck-file_io.$(OBJEXT) lessfsck-lessfsck.$(OBJEXT) \
+	lessfsck-lib_crypto.$(OBJEXT) lessfsck-lib_safe.$(OBJEXT) \
+	lessfsck-lib_tc.$(OBJEXT) lessfsck-lib_cfg.$(OBJEXT) \
+	lessfsck-lib_str.$(OBJEXT) lessfsck-lib_net.$(OBJEXT) \
+	lessfsck-lib_qlz.$(OBJEXT) lessfsck-lib_repl.$(OBJEXT) \
+	lessfsck-lib_bdb.$(OBJEXT) lessfsck-lib_snappy.$(OBJEXT)
 lessfsck_OBJECTS = $(am_lessfsck_OBJECTS)
 lessfsck_LDADD = $(LDADD)
 lessfsck_LINK = $(CCLD) $(lessfsck_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-am_listdb_OBJECTS = \
-	listdb-lib_common.$(OBJEXT) listdb-lib_lzo.$(OBJEXT) \
-	listdb-lib_qlz15.$(OBJEXT) listdb-file_io.$(OBJEXT) \
-	listdb-listdb.$(OBJEXT) listdb-lib_crypto.$(OBJEXT) \
-	listdb-lib_safe.$(OBJEXT) listdb-lib_tc.$(OBJEXT) \
-	listdb-lib_cfg.$(OBJEXT) listdb-lib_str.$(OBJEXT) \
-	listdb-lib_net.$(OBJEXT) listdb-lib_qlz.$(OBJEXT) \
-	listdb-lib_repl.$(OBJEXT) listdb-lib_bdb.$(OBJEXT) \
-	listdb-lib_snappy.$(OBJEXT)
+am_listdb_OBJECTS = listdb-lib_common.$(OBJEXT) \
+	listdb-lib_lzo.$(OBJEXT) listdb-lib_qlz15.$(OBJEXT) \
+	listdb-file_io.$(OBJEXT) listdb-listdb.$(OBJEXT) \
+	listdb-lib_crypto.$(OBJEXT) listdb-lib_safe.$(OBJEXT) \
+	listdb-lib_tc.$(OBJEXT) listdb-lib_cfg.$(OBJEXT) \
+	listdb-lib_str.$(OBJEXT) listdb-lib_net.$(OBJEXT) \
+	listdb-lib_qlz.$(OBJEXT) listdb-lib_repl.$(OBJEXT) \
+	listdb-lib_bdb.$(OBJEXT) listdb-lib_snappy.$(OBJEXT)
 listdb_OBJECTS = $(am_listdb_OBJECTS)
 listdb_LDADD = $(LDADD)
 listdb_LINK = $(CCLD) $(listdb_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-am_mklessfs_OBJECTS = mk\
-	mklessfs-lib_common.$(OBJEXT) mklessfs-lib_qlz15.$(OBJEXT) \
-	mklessfs-lib_lzo.$(OBJEXT) mklessfs-file_io.$(OBJEXT) \
-	mklessfs-mklessfs.$(OBJEXT) mklessfs-lib_crypto.$(OBJEXT) \
-	mklessfs-lib_safe.$(OBJEXT) mklessfs-lib_tc.$(OBJEXT) \
-	mklessfs-lib_cfg.$(OBJEXT) mklessfs-lib_str.$(OBJEXT) \
-	mklessfs-lib_net.$(OBJEXT) mklessfs-lib_qlz.$(OBJEXT) \
-	mklessfs-lib_repl.$(OBJEXT) mklessfs-lib_bdb.$(OBJEXT) \
-	mklessfs-lib_snappy.$(OBJEXT)
+am_mklessfs_OBJECTS = mklessfs-lib_common.$(OBJEXT) \
+	mklessfs-lib_qlz15.$(OBJEXT) mklessfs-lib_lzo.$(OBJEXT) \
+	mklessfs-file_io.$(OBJEXT) mklessfs-mklessfs.$(OBJEXT) \
+	mklessfs-lib_crypto.$(OBJEXT) mklessfs-lib_safe.$(OBJEXT) \
+	mklessfs-lib_tc.$(OBJEXT) mklessfs-lib_cfg.$(OBJEXT) \
+	mklessfs-lib_str.$(OBJEXT) mklessfs-lib_net.$(OBJEXT) \
+	mklessfs-lib_qlz.$(OBJEXT) mklessfs-lib_repl.$(OBJEXT) \
+	mklessfs-lib_bdb.$(OBJEXT) mklessfs-lib_snappy.$(OBJEXT)
 mklessfs_OBJECTS = $(am_mklessfs_OBJECTS)
 mklessfs_LDADD = $(LDADD)
 mklessfs_LINK = $(CCLD) $(mklessfs_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-am_replogtool_OBJECTS = \
-	replogtool-lib_common.$(OBJEXT) replogtool-lib_lzo.$(OBJEXT) \
-	replogtool-lib_qlz15.$(OBJEXT) replogtool-file_io.$(OBJEXT) \
-	replogtool-replogtool.$(OBJEXT) \
+am_replogtool_OBJECTS = replogtool-lib_common.$(OBJEXT) \
+	replogtool-lib_lzo.$(OBJEXT) replogtool-lib_qlz15.$(OBJEXT) \
+	replogtool-file_io.$(OBJEXT) replogtool-replogtool.$(OBJEXT) \
 	replogtool-lib_crypto.$(OBJEXT) replogtool-lib_safe.$(OBJEXT) \
 	replogtool-lib_tc.$(OBJEXT) replogtool-lib_cfg.$(OBJEXT) \
 	replogtool-lib_str.$(OBJEXT) replogtool-lib_net.$(OBJEXT) \
@@ -190,10 +185,10 @@ am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/lessfs-file_io.Po \
 	./$(DEPDIR)/lessfs-lessfs.Po ./$(DEPDIR)/lessfs-lib_bdb.Po \
 	./$(DEPDIR)/lessfs-lib_cfg.Po ./$(DEPDIR)/lessfs-lib_common.Po \
-	./$(DEPDIR)/lessfs-lib_crypto.Po \
-	./$(DEPDIR)/lessfs-lib_lzo.Po ./$(DEPDIR)/lessfs-lib_net.Po \
-	./$(DEPDIR)/lessfs-lib_qlz.Po ./$(DEPDIR)/lessfs-lib_qlz15.Po \
-	./$(DEPDIR)/lessfs-lib_repl.Po ./$(DEPDIR)/lessfs-lib_safe.Po \
+	./$(DEPDIR)/lessfs-lib_crypto.Po ./$(DEPDIR)/lessfs-lib_lzo.Po \
+	./$(DEPDIR)/lessfs-lib_net.Po ./$(DEPDIR)/lessfs-lib_qlz.Po \
+	./$(DEPDIR)/lessfs-lib_qlz15.Po ./$(DEPDIR)/lessfs-lib_repl.Po \
+	./$(DEPDIR)/lessfs-lib_safe.Po \
 	./$(DEPDIR)/lessfs-lib_snappy.Po ./$(DEPDIR)/lessfs-lib_str.Po \
 	./$(DEPDIR)/lessfs-lib_tc.Po ./$(DEPDIR)/lessfsck-file_io.Po \
 	./$(DEPDIR)/lessfsck-lessfsck.Po \
@@ -211,10 +206,10 @@ am__depfiles_remade = ./$(DEPDIR)/lessfs-file_io.Po \
 	./$(DEPDIR)/lessfsck-lib_str.Po ./$(DEPDIR)/lessfsck-lib_tc.Po \
 	./$(DEPDIR)/listdb-file_io.Po ./$(DEPDIR)/listdb-lib_bdb.Po \
 	./$(DEPDIR)/listdb-lib_cfg.Po ./$(DEPDIR)/listdb-lib_common.Po \
-	./$(DEPDIR)/listdb-lib_crypto.Po \
-	./$(DEPDIR)/listdb-lib_lzo.Po ./$(DEPDIR)/listdb-lib_net.Po \
-	./$(DEPDIR)/listdb-lib_qlz.Po ./$(DEPDIR)/listdb-lib_qlz15.Po \
-	./$(DEPDIR)/listdb-lib_repl.Po ./$(DEPDIR)/listdb-lib_safe.Po \
+	./$(DEPDIR)/listdb-lib_crypto.Po ./$(DEPDIR)/listdb-lib_lzo.Po \
+	./$(DEPDIR)/listdb-lib_net.Po ./$(DEPDIR)/listdb-lib_qlz.Po \
+	./$(DEPDIR)/listdb-lib_qlz15.Po ./$(DEPDIR)/listdb-lib_repl.Po \
+	./$(DEPDIR)/listdb-lib_safe.Po \
 	./$(DEPDIR)/listdb-lib_snappy.Po ./$(DEPDIR)/listdb-lib_str.Po \
 	./$(DEPDIR)/listdb-lib_tc.Po ./$(DEPDIR)/listdb-listdb.Po \
 	./$(DEPDIR)/mklessfs-file_io.Po \
@@ -726,8 +721,6 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
-
-
 lessfs-lib_qlz15.o: lib_qlz15.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -MT lessfs-lib_qlz15.o -MD -MP -MF $(DEPDIR)/lessfs-lib_qlz15.Tpo -c -o lessfs-lib_qlz15.o `test -f 'lib_qlz15.c' || echo '$(srcdir)/'`lib_qlz15.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfs-lib_qlz15.Tpo $(DEPDIR)/lessfs-lib_qlz15.Po
@@ -937,8 +930,6 @@ lessfs-lib_snappy.obj: lib_snappy.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib_snappy.c' object='lessfs-lib_snappy.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -c -o lessfs-lib_snappy.obj `if test -f 'lib_snappy.c'; then $(CYGPATH_W) 'lib_snappy.c'; else $(CYGPATH_W) '$(srcdir)/lib_snappy.c'; fi`
-
-
 
 lessfsck-lib_common.o: lib_common.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -MT lessfsck-lib_common.o -MD -MP -MF $(DEPDIR)/lessfsck-lib_common.Tpo -c -o lessfsck-lib_common.o `test -f 'lib_common.c' || echo '$(srcdir)/'`lib_common.c
@@ -1150,8 +1141,6 @@ lessfsck-lib_snappy.obj: lib_snappy.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -c -o lessfsck-lib_snappy.obj `if test -f 'lib_snappy.c'; then $(CYGPATH_W) 'lib_snappy.c'; else $(CYGPATH_W) '$(srcdir)/lib_snappy.c'; fi`
 
-
-
 listdb-lib_common.o: lib_common.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -MT listdb-lib_common.o -MD -MP -MF $(DEPDIR)/listdb-lib_common.Tpo -c -o listdb-lib_common.o `test -f 'lib_common.c' || echo '$(srcdir)/'`lib_common.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/listdb-lib_common.Tpo $(DEPDIR)/listdb-lib_common.Po
@@ -1362,8 +1351,6 @@ listdb-lib_snappy.obj: lib_snappy.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -c -o listdb-lib_snappy.obj `if test -f 'lib_snappy.c'; then $(CYGPATH_W) 'lib_snappy.c'; else $(CYGPATH_W) '$(srcdir)/lib_snappy.c'; fi`
 
-
-
 mklessfs-lib_common.o: lib_common.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -MT mklessfs-lib_common.o -MD -MP -MF $(DEPDIR)/mklessfs-lib_common.Tpo -c -o mklessfs-lib_common.o `test -f 'lib_common.c' || echo '$(srcdir)/'`lib_common.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mklessfs-lib_common.Tpo $(DEPDIR)/mklessfs-lib_common.Po
@@ -1573,8 +1560,6 @@ mklessfs-lib_snappy.obj: lib_snappy.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib_snappy.c' object='mklessfs-lib_snappy.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -c -o mklessfs-lib_snappy.obj `if test -f 'lib_snappy.c'; then $(CYGPATH_W) 'lib_snappy.c'; else $(CYGPATH_W) '$(srcdir)/lib_snappy.c'; fi`
-
-
 
 replogtool-lib_common.o: lib_common.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -MT replogtool-lib_common.o -MD -MP -MF $(DEPDIR)/replogtool-lib_common.Tpo -c -o replogtool-lib_common.o `test -f 'lib_common.c' || echo '$(srcdir)/'`lib_common.c

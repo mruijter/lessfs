@@ -21,7 +21,6 @@
 /* Define if you want to debug locking */
 #undef FILELOG
 
-
 /* Define to 1 if you have 'alloca', as a function or macro. */
 #undef HAVE_ALLOCA
 
@@ -55,7 +54,6 @@
 
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
-
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H

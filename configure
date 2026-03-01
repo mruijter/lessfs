@@ -657,7 +657,6 @@ PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
 BERKELEYDB_LIBS
-HAMSTERDB_LIBS
 SNAPPY_LIBS
 LZO_LIBS
 CRYPTO_LIBS
@@ -770,7 +769,6 @@ enable_dependency_tracking
 with_crypto
 with_lzo
 with_snappy
-with_hamsterdb
 with_berkeleydb
 enable_debug
 enable_memtrace
@@ -1435,7 +1433,6 @@ Optional Packages:
   --with-crypto           Enable lessfs filesystem encryption.
   --with-lzo              Enable the use of LZO compression.
   --with-snappy           Enable the use of googles snappy compression.
-  --with-hamsterdb        Use hamsterdb instead of tokyocabinet.
   --with-berkeleydb       Use berkeleydb instead of tokyocabinet.
 
 Some influential environment variables:
@@ -6610,75 +6607,6 @@ fi
 
 
 
-HAMSTERDB_MSG="no"
-
-# Check whether --with-hamsterdb was given.
-if test ${with_hamsterdb+y}
-then :
-  withval=$with_hamsterdb;
-                if test "x$withval" != "xno" ; then
-
-printf "%s\n" "#define HAMSTERDB 1" >>confdefs.h
-
-                        HAMSTERDB_LIBS="$LIBS -lhamsterdb"
-                        EXTRAFILES=lib_hamster.c
-                        ac_fn_c_check_header_compile "$LINENO" "ham/hamsterdb.h" "ac_cv_header_ham_hamsterdb_h" "
-
-"
-if test "x$ac_cv_header_ham_hamsterdb_h" = xyes
-then :
-  printf "%s\n" "#define HAVE_HAM_HAMSTERDB_H 1" >>confdefs.h
-
-fi
-
-                        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for ham_env_create in -lhamsterdb" >&5
-printf %s "checking for ham_env_create in -lhamsterdb... " >&6; }
-if test ${ac_cv_lib_hamsterdb_ham_env_create+y}
-then :
-  printf %s "(cached) " >&6
-else $as_nop
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lhamsterdb  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-char ham_env_create ();
-int
-main (void)
-{
-return ham_env_create ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"
-then :
-  ac_cv_lib_hamsterdb_ham_env_create=yes
-else $as_nop
-  ac_cv_lib_hamsterdb_ham_env_create=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_hamsterdb_ham_env_create" >&5
-printf "%s\n" "$ac_cv_lib_hamsterdb_ham_env_create" >&6; }
-if test "x$ac_cv_lib_hamsterdb_ham_env_create" = xyes
-then :
-  HAMSTERDB_LIBS="-lhamsterdb"
-else $as_nop
-  as_fn_error $? "\"Hamsterdb is not found\"" "$LINENO" 5
-fi
-
-                        HAMSTERDB_MSG="yes"
-                fi
-
-
-fi
-
 
 BERKELEYDB_MSG="no"
 
@@ -6743,7 +6671,7 @@ else $as_nop
   as_fn_error $? "\"Berkeleydb is not found\"" "$LINENO" 5
 fi
 
-                        HAMSTERDB_MSG="yes"
+                        BERKELEYDB_MSG="yes"
                 fi
 
 
@@ -6812,7 +6740,6 @@ printf "%s\n" "#define FILELOG 1" >>confdefs.h
 
 
 fi
-
 
 
 
