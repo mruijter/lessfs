@@ -90,6 +90,7 @@ extern int freplbl;             /* Backlog processing */
 extern int BLKSIZE;
 extern long working;
 
+#ifndef BERKELEYDB
 TCHDB *dbb = NULL;
 TCHDB *dbu = NULL;
 TCHDB *dbp = NULL;
@@ -99,6 +100,7 @@ TCHDB *dbdta = NULL;
 TCBDB *dbdirent = NULL;
 TCBDB *freelist = NULL;         // Free list for file_io
 
+#endif
 TCTREE *workqtree;              // Used to buffer incoming data (writes)
 TCTREE *readcachetree;          // Used to cache chunks of data that are likely to be read
 TCTREE *path2inotree;           // Used to cache path to inode translations
