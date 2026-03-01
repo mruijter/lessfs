@@ -78,7 +78,7 @@ unsigned char *safepassword()
 DAT *lfsencrypt(unsigned char *unenc, unsigned long size)
 {
     unsigned char *safepasswd;
-    EVP_CIPHER_CTX ctx;
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     DAT *encoded;
     int olen, tlen;
 
@@ -86,19 +86,19 @@ DAT *lfsencrypt(unsigned char *unenc, unsigned long size)
 
     pthread_mutex_lock(&crypto_mutex);
     safepasswd = safepassword();
-    EVP_CIPHER_CTX_init(&ctx);
-    EVP_EncryptInit(&ctx, EVP_bf_cbc(), safepasswd, config->iv);
+    if (!ctx) { die_cryptoerr("EVP_CIPHER_CTX_new failed\n"); }
+    EVP_EncryptInit(ctx, EVP_bf_cbc(), safepasswd, config->iv);
     encoded = s_malloc(sizeof(DAT));
     encoded->data = s_malloc(8 + size); //Blowfish can grow 64 bits
 
-    if (EVP_EncryptUpdate(&ctx, encoded->data, &olen, unenc, size) != 1) {
+    if (EVP_EncryptUpdate(ctx, encoded->data, &olen, unenc, size) != 1) {
         die_cryptoerr("error in encrypt update\n");
     }
 
-    if (EVP_EncryptFinal(&ctx, encoded->data + olen, &tlen) != 1) {
+    if (EVP_EncryptFinal(ctx, encoded->data + olen, &tlen) != 1) {
         die_cryptoerr("error in encrypt final\n");
     }
-    EVP_CIPHER_CTX_cleanup(&ctx);
+    EVP_CIPHER_CTX_free(ctx);
     encoded->size = olen + tlen;
     if (encoded->size > 8 + size) {
         die_cryptoerr
@@ -123,20 +123,20 @@ DAT *lfsdecrypt(DAT * data)
     decrypted->data = s_malloc(data->size);
     safepasswd = safepassword();
 
-    EVP_CIPHER_CTX ctx;
-    EVP_CIPHER_CTX_init(&ctx);
-    EVP_DecryptInit(&ctx, EVP_bf_cbc(), safepasswd, config->iv);
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) { die_cryptoerr("EVP_CIPHER_CTX_new failed\n"); }
+    EVP_DecryptInit(ctx, EVP_bf_cbc(), safepasswd, config->iv);
 
     if (EVP_DecryptUpdate
-        (&ctx, decrypted->data, &olen, data->data, data->size) != 1) {
+        (ctx, decrypted->data, &olen, data->data, data->size) != 1) {
         die_cryptoerr("Unexpected fatal error while decrypting.\n");
     }
 
-    if (EVP_DecryptFinal(&ctx, decrypted->data + olen, &tlen) != 1) {
+    if (EVP_DecryptFinal(ctx, decrypted->data + olen, &tlen) != 1) {
         die_cryptoerr("Unexpected fatal error in decrypt final.\n");
     }
     olen += tlen;
-    EVP_CIPHER_CTX_cleanup(&ctx);
+    EVP_CIPHER_CTX_free(ctx);
     decrypted->size = olen;
     s_free(safepasswd);
     pthread_mutex_unlock(&crypto_mutex);
