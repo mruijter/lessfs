@@ -125,7 +125,7 @@ AC_ARG_WITH(berkeleydb,
 
 LMDB_MSG="no"
 AC_ARG_WITH(lmdb,
-        [  --with-lmdb             Use LMDB instead of berkeleydb.],
+        [  --with-lmdb             Use LMDB (default if no backend specified).],
         [
                 if test "x$withval" != "xno" ; then
                         if test "x$BERKELEYDB_MSG" = "xyes" ; then
@@ -142,6 +142,18 @@ AC_ARG_WITH(lmdb,
                 fi
         ]
 )
+
+# Default to LMDB if no backend was explicitly selected
+if test "x$BERKELEYDB_MSG" = "xno" && test "x$LMDB_MSG" = "xno" ; then
+        AC_DEFINE(LMDB, 1,
+                [Define if you want to use LMDB])
+        LMDB_LIBS="$LIBS -llmdb"
+        EXTRAFILES=lib_lmdb.c
+        AC_CHECK_HEADERS(lmdb.h, [], [], [
+        ])
+        AC_CHECK_LIB(lmdb, mdb_env_create , [LMDB_LIBS="-llmdb"], [AC_MSG_ERROR("LMDB is not found (default backend). Install liblmdb-dev or use --with-berkeleydb")])
+        LMDB_MSG="yes (default)"
+fi
 
 DEBUG_MSG="no"
 AC_ARG_ENABLE(debug,

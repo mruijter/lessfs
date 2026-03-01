@@ -1436,7 +1436,7 @@ Optional Packages:
   --with-lzo              Enable the use of LZO compression.
   --with-snappy           Enable the use of googles snappy compression.
   --with-berkeleydb       Use berkeleydb instead of tokyocabinet.
-  --with-lmdb             Use LMDB instead of berkeleydb.
+  --with-lmdb             Use LMDB (default if no backend specified).
 
 Some influential environment variables:
   CC          C compiler command
@@ -6753,6 +6753,67 @@ fi
 
 fi
 
+
+# Default to LMDB if no backend was explicitly selected
+if test "x$BERKELEYDB_MSG" = "xno" && test "x$LMDB_MSG" = "xno" ; then
+
+printf "%s\n" "#define LMDB 1" >>confdefs.h
+
+        LMDB_LIBS="$LIBS -llmdb"
+        EXTRAFILES=lib_lmdb.c
+        ac_fn_c_check_header_compile "$LINENO" "lmdb.h" "ac_cv_header_lmdb_h" "
+
+"
+if test "x$ac_cv_header_lmdb_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_LMDB_H 1" >>confdefs.h
+
+fi
+
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for mdb_env_create  in -llmdb" >&5
+printf %s "checking for mdb_env_create  in -llmdb... " >&6; }
+if test ${ac_cv_lib_lmdb_mdb_env_create_+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-llmdb  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char mdb_env_create  ();
+int
+main (void)
+{
+return mdb_env_create  ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_lmdb_mdb_env_create_=yes
+else $as_nop
+  ac_cv_lib_lmdb_mdb_env_create_=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_lmdb_mdb_env_create_" >&5
+printf "%s\n" "$ac_cv_lib_lmdb_mdb_env_create_" >&6; }
+if test "x$ac_cv_lib_lmdb_mdb_env_create_" = xyes
+then :
+  LMDB_LIBS="-llmdb"
+else $as_nop
+  as_fn_error $? "\"LMDB is not found (default backend). Install liblmdb-dev or use --with-berkeleydb\"" "$LINENO" 5
+fi
+
+        LMDB_MSG="yes (default)"
+fi
 
 DEBUG_MSG="no"
 # Check whether --enable-debug was given.

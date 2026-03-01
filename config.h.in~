@@ -61,6 +61,9 @@
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
 
+/* Define to 1 if you have the <lmdb.h> header file. */
+#undef HAVE_LMDB_H
+
 /* Define to 1 if you have the <lzo/lzoconf.h> header file. */
 #undef HAVE_LZO_LZOCONF_H
 
@@ -220,6 +223,9 @@
 
 /* Define to 1 if the system has the type `_Bool'. */
 #undef HAVE__BOOL
+
+/* Define if you want to use LMDB */
+#undef LMDB
 
 /* Define to 1 if `lstat' dereferences a symlink specified with a trailing
    slash. */
