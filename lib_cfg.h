@@ -83,7 +83,6 @@ struct configdata {
     int reclaim;
     int tune_for_size; // 0 <=1TB 1<=10TB 2 >10TB
     int bdb_private;
-    unsigned long hamsterdb_cachesize;
     unsigned long max_backlog_size;
 // Sleep utime in the truncation loop.
     int direct_chunk_io;       // Enable O_DIRECT for chunk I/O operations

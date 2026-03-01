@@ -53,11 +53,7 @@
 #include <db.h>
 #include "lib_bdb.h"
 #else
-#ifndef HAMSTERDB
 #include "lib_tc.h"
-#else
-#include "lib_hamster.h"
-#endif
 #endif
 
 

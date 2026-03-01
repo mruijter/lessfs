@@ -66,7 +66,6 @@
 #include "lib_repl.h"
 
 #ifndef BERKELEYDB
-#ifndef HAMSTERDB
 extern char *logname;
 extern char *function;
 extern int debug;
@@ -1995,5 +1994,4 @@ void listdbu()
         s_free(key);
     }
 }
-#endif
 #endif

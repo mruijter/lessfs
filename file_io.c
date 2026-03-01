@@ -58,11 +58,7 @@
 #include "lib_qlz.h"
 #include "lib_qlz15.h"
 #include "lib_common.h"
-#ifndef COMMERCIAL
 #include "lib_tc.h"
-#else
-#include "lib_hamster.h"
-#endif
 #include "lib_crypto.h"
 #include "file_io.h"
 #include "lib_repl.h"

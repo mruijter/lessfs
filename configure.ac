@@ -105,22 +105,6 @@ AC_ARG_WITH(snappy,
 
 
 
-HAMSTERDB_MSG="no"
-AC_ARG_WITH(hamsterdb,
-        [  --with-hamsterdb        Use hamsterdb instead of tokyocabinet.],
-        [
-                if test "x$withval" != "xno" ; then
-                        AC_DEFINE(HAMSTERDB, 1,
-                                [Define if you want to use hamsterdb instead of tokyocabinet])
-                        HAMSTERDB_LIBS="$LIBS -lhamsterdb"
-                        EXTRAFILES=lib_hamster.c
-                        AC_CHECK_HEADERS(ham/hamsterdb.h, [], [], [
-                        ])
-                        AC_CHECK_LIB(hamsterdb, ham_env_create, [HAMSTERDB_LIBS="-lhamsterdb"], [AC_MSG_ERROR("Hamsterdb is not found")])
-                        HAMSTERDB_MSG="yes"
-                fi
-        ]
-)
 
 BERKELEYDB_MSG="no"
 AC_ARG_WITH(berkeleydb,
@@ -134,7 +118,7 @@ AC_ARG_WITH(berkeleydb,
                         AC_CHECK_HEADERS(db.h, [], [], [
                         ])
                         AC_CHECK_LIB(db, db_env_create , [BERKELEYDB_LIBS="-ldb"], [AC_MSG_ERROR("Berkeleydb is not found")])
-                        HAMSTERDB_MSG="yes"
+                        BERKELEYDB_MSG="yes"
                 fi
         ]
 )
@@ -191,7 +175,6 @@ AC_SUBST(CRYPTO_FLAGS)
 AC_SUBST(CRYPTO_LIBS)
 AC_SUBST(LZO_LIBS)
 AC_SUBST(SNAPPY_LIBS)
-AC_SUBST(HAMSTERDB_LIBS)
 AC_SUBST(BERKELEYDB_LIBS)
 PKG_CHECK_MODULES(DEPS, tokyocabinet >= 1.4.21 fuse >= 2.8.0 ${MYDEPS})
 AC_CONFIG_FILES([Makefile])

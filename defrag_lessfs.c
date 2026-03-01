@@ -59,9 +59,7 @@ int main(int argc, char *argv[])
         usage(argv[0]);
 
     parseconfig(0, 0);
-#ifndef HAMSTERDB
     tc_defrag();
-#endif
     db_close(1);
     sync();
     exit(0);

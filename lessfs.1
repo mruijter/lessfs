@@ -70,11 +70,9 @@ lessfs /etc/lessfs.cfg /fuse -o negative_timeout=0,\\
 .fi
 .SS LESSFS CONFIGURATION FILE.
 lessfs requires a configuration file that contains information about the
-tokyocabinet or hamsterdb databases that actually hold the filesystem data. You may choose
+tokyocabinet databases that actually hold the filesystem data. You may choose
 not to include some of the variables in the configuration file. In this case you
-should export the variables into the environment. The hamsterdb database does not require
-the _BS lines since hamsterdb does not use hash databases. When you choose to use hamsterdb
-then you are advised to choose file_io as data store. 
+should export the variables into the environment.
 Example: export BLOCKDATA_PATH=/data/dta
 This feature can be used for scripting.
 The configuration file should otherwise contain the following variables:
@@ -245,9 +243,6 @@ Valid options are 0..5.
 Valid options are : off (default) or on. This option is only valid when lessfs is compiled with BerkeleyDB support. Enabling DB_PRIVATE can improve performance at the cost of making it impossible to use third party tools like db_stat. 
 .IP TUNEFORSIZE=medium
 Valid options are : small (default), medium or huge. This option is only valid when lessfs is compiled with BerkeleyDB support. It enables BerkeleyDB database partitioning. Use small when lessfs will store less then 1TB of data. Medium will tune lessfs to store up to 10TB. Huge will indicate more then 10TB. Tuning DB_CONFIG for cache size and locks is still needed and not effected by these settings!
-.SS HAMSTERDB SPECIFIC OPTIONS
-.IP HAMSTERDB_CACHESIZE=size
-Specify the size of the cache in bytes that hamsterdb uses internally. 
 .SH SEE ALSO
 .BR replogfile (1)
 .SH COMPRESSION STATISTICS

@@ -21,8 +21,6 @@
 /* Define if you want to debug locking */
 #undef FILELOG
 
-/* Define if you want to use hamsterdb instead of tokyocabinet */
-#undef HAMSTERDB
 
 /* Define to 1 if you have 'alloca', as a function or macro. */
 #undef HAVE_ALLOCA
@@ -58,8 +56,6 @@
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
-/* Define to 1 if you have the <ham/hamsterdb.h> header file. */
-#undef HAVE_HAM_HAMSTERDB_H
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H

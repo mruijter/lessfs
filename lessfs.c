@@ -72,11 +72,7 @@
 #include <db.h>
 #include "lib_bdb.h"
 #else
-#ifndef HAMSTERDB
 #include "lib_tc.h"
-#else
-#include "lib_hamster.h"
-#endif
 #endif
 #include "lib_net.h"
 #include "file_io.h"
@@ -157,12 +153,10 @@ int check_path_sanity(const char *path)
 void dbsync()
 {
 #ifndef BERKELEYDB
-#ifndef HAMSTERDB
     tcbdbsync(dbdirent);
     tchdbsync(dbu);
     tchdbsync(dbb);
     tchdbsync(dbp);
-#endif
 #endif
     if ( config->blockdata_io_type == FILE_IO ) {
         fsync(fdbdta);
@@ -1314,20 +1308,6 @@ void *housekeeping_worker(void *arg)
                 count = 7;
                 break;
 #else
-#ifdef HAMSTERDB
-            case 0:
-                dbpath =
-                    as_sprintf(__FILE__, __LINE__, "%s/lessfs.db",
-                               config->meta);
-                count = 7;
-                break;
-            case 1:
-                if ( config->blockdata_io_type == FILE_IO ) {
-                    dbpath = s_strdup(config->blockdata);
-                }
-                count = 7;
-                break;
-#else
             case 0:
                 dbpath =
                     as_sprintf(__FILE__, __LINE__, "%s/fileblock.tch",
@@ -1367,7 +1347,6 @@ void *housekeeping_worker(void *arg)
                     as_sprintf(__FILE__, __LINE__, "%s/hardlink.tcb",
                                config->hardlink);
                 break;
-#endif
 #endif
             default:
                 break;
@@ -1492,20 +1471,6 @@ void show_lock_status(int csocket)
                      "cachep2i_lock : 0 (not set)\n",
                      strlen("cachep2i_lock : 0 (not set)\n"));
     }
-#ifdef HAMSTERDB
-    if (0 != try_ham_lock()) {
-        msg =
-            as_sprintf(__FILE__, __LINE__, "ham_lock : 1 (set) by %s\n",
-                       ham_lockedby);
-        timeoutWrite(3, csocket, msg, strlen(msg));
-        s_free(msg);
-    } else {
-        release_ham_lock();
-        timeoutWrite(3, csocket,
-                     "ham_lock : 0 (not set)\n",
-                     strlen("ham_lock : 0 (not set)\n"));
-    }
-#endif
     timeoutWrite(3, csocket,
                  "---------------------\n",
                  strlen("---------------------\n"));
@@ -1598,7 +1563,6 @@ void *ioctl_worker(void *arg)
                 }
             }
 #ifndef BERKELEYDB
-#ifndef HAMSTERDB
             if (0 == strncmp(buf, "defrag\r", strlen("defrag\r"))) {
                 result = "Resuming i/o after defragmentation.";
                 err = 1;
@@ -1615,7 +1579,6 @@ void *ioctl_worker(void *arg)
                 tc_open(1, 0, 0);
                 release_global_lock();
             }
-#endif
 #endif
             if (0 == strncmp(buf, "help\r", strlen("help\r"))
                 || 0 == strncmp(buf, "h\r", strlen("h\r"))) {
@@ -1763,9 +1726,7 @@ void mark_dirty()
     s_free(brand);
     free(stiger);
 #ifndef BERKELEYDB
-#ifndef HAMSTERDB
     tchdbsync(dbu);
-#endif
 #endif
     EFUNC;
     return;
@@ -1980,11 +1941,7 @@ static void *lessfs_init()
 #ifdef BERKELEYDB
        bdb_restart_truncation();
 #else
-#ifdef HAMSTERDB
-       hm_restart_truncation();
-#else
        tc_restart_truncation();
-#endif
 #endif
     }
     EFUNC;

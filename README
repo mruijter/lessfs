@@ -10,7 +10,7 @@ Failure to do so will limit the databases to a 2GB filesize.
 Although tokyocabinet is still required to build lessfs, 
 using the database is no longer recommended.
 Please consider compiling Lessfs with either 
-(stable) --with-berkeleydb or (experimental) --with-hamsterdb
+(stable) --with-berkeleydb
 
 Tokyocabinet can and will corrupt beyond repair when 
 the system goes down unexpectedly in case of a power outage 

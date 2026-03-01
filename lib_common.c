@@ -72,11 +72,7 @@
 #include <db.h>
 #include "lib_bdb.h"
 #else
-#if !defined(HAMSTERDB) && !defined(BERKELEYDB)
 #include "lib_tc.h"
-#else
-#include "lib_hamster.h"
-#endif
 #endif
 #include "lib_net.h"
 #include "file_io.h"
@@ -94,7 +90,6 @@ extern int freplbl;             /* Backlog processing */
 extern int BLKSIZE;
 extern long working;
 
-#if !defined(HAMSTERDB) && !defined(BERKELEYDB)
 TCHDB *dbb = NULL;
 TCHDB *dbu = NULL;
 TCHDB *dbp = NULL;
@@ -103,7 +98,6 @@ TCHDB *dbs = NULL;              // Symlink
 TCHDB *dbdta = NULL;
 TCBDB *dbdirent = NULL;
 TCBDB *freelist = NULL;         // Free list for file_io
-#endif
 
 TCTREE *workqtree;              // Used to buffer incoming data (writes)
 TCTREE *readcachetree;          // Used to cache chunks of data that are likely to be read
@@ -2558,11 +2552,7 @@ void db_close(bool defrag)
 #ifdef BERKELEYDB
     bdb_close();
 #else
-#if !defined(HAMSTERDB) && !defined(BERKELEYDB)
     tc_close(defrag);
-#else
-    hm_close(defrag);
-#endif
 #endif
 }
 
@@ -3469,25 +3459,14 @@ void parseconfig(int mklessfs, bool force_optimize)
             }
         }
     }
-#ifndef BERKELEYDB
-#if !defined(HAMSTERDB) && !defined(BERKELEYDB)
     if ( 0 != mklessfs ) { 
-       fprintf(stderr,"Using tokyocabinet is DEPRECATED and no longer recommended. Please consider using (1) Berkeley DB or (2) Hamsterdb.\n");
+       fprintf(stderr,"Using tokyocabinet is DEPRECATED and no longer recommended. Please consider using Berkeley DB.\n");
     }
-#endif
-#endif
 #ifdef BERKELEYDB
     if (config->blockdata_io_type == TOKYOCABINET) {
         if ( 0 != mklessfs ) fprintf(stderr,"Configuration error : berkeleydb only supports file_io or chunk_io\n");
         die_dataerr
             ("Configuration error : berkeleydb only supports file_io or chunk_io");
-    }
-#endif
-#ifdef HAMSTERDB
-    if (config->blockdata_io_type == TOKYOCABINET) {
-        if ( 0 != mklessfs ) fprintf(stderr,"Configuration error : hamsterdb only supports file_io or chunk_io\n");
-        die_dataerr
-            ("Configuration error : hamsterdb only supports file_io or chunk_io");
     }
 #endif
     iv = getenv("MAX_BACKLOG_SIZE");
@@ -3512,9 +3491,6 @@ void parseconfig(int mklessfs, bool force_optimize)
 #ifdef BERKELEYDB
     config->meta = read_val("META_PATH");
 #else
-#ifdef HAMSTERDB
-    config->meta = read_val("META_PATH");
-#else
     config->freelist = read_val("FREELIST_PATH");
     config->freelistbs = read_val("FREELIST_BS");
     config->blockusage = read_val("BLOCKUSAGE_PATH");
@@ -3529,7 +3505,6 @@ void parseconfig(int mklessfs, bool force_optimize)
     config->hardlinkbs = read_val("HARDLINK_BS");
     config->symlink = read_val("SYMLINK_PATH");
     config->symlinkbs = read_val("SYMLINK_BS");
-#endif
 #endif
     LINFO("config->blockdata = %s", config->blockdata);
 
@@ -3732,14 +3707,6 @@ void parseconfig(int mklessfs, bool force_optimize)
         cs = 30;
     config->flushtime = cs;
     LINFO("cache %llu data blocks", config->cachesize);
-#ifdef HAMSTERDB
-    iv = getenv("HAMSTERDB_CACHESIZE");
-    if (iv) {
-        sscanf(iv, "%lu", &config->hamsterdb_cachesize);
-    } else config->hamsterdb_cachesize=calc * 1024 * 1024/10;
-    LINFO("The hamsterdb cache size is %lu bytes",
-           config->hamsterdb_cachesize);
-#endif
     if (mklessfs == 1) {
         dbpath =
             as_sprintf(__FILE__, __LINE__, "%s/fileblock.tch",
@@ -3751,9 +3718,6 @@ void parseconfig(int mklessfs, bool force_optimize)
             exit(EXIT_DATAERR);
         }
         if (config->blockdata_io_type == CHUNK_IO) init_chunk_io();
-#ifdef HAMSTERDB
-        hm_create(0);
-#endif
     }
     if (mklessfs == 2) {
         if (config->blockdata_io_type == CHUNK_IO) {
@@ -3764,24 +3728,15 @@ void parseconfig(int mklessfs, bool force_optimize)
 #ifdef BERKELEYDB
         bdb_open();
 #else
-#ifdef HAMSTERDB
-        hm_create(1);
-#else
         if (NULL == dbp)
             tc_open(0, 1, force_optimize);
-#endif
 #endif
     } else {
 #ifdef BERKELEYDB
         bdb_open();
 #else
-#ifdef HAMSTERDB
-        if (mklessfs == 0 || mklessfs == 3)
-            hm_open();
-#else
         if (NULL == dbp)
             tc_open(0, 0, force_optimize);
-#endif
 #endif
     }
 

@@ -107,7 +107,7 @@ CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" \
 	"$(DESTDIR)$(man1dir)"
 PROGRAMS = $(bin_PROGRAMS) $(sbin_PROGRAMS)
-am_lessfs_OBJECTS = lessfs-lib_hamster.$(OBJEXT) \
+am_lessfs_OBJECTS = \
 	lessfs-lib_qlz15.$(OBJEXT) lessfs-lib_common.$(OBJEXT) \
 	lessfs-lib_lzo.$(OBJEXT) lessfs-lessfs.$(OBJEXT) \
 	lessfs-lib_crypto.$(OBJEXT) lessfs-lib_safe.$(OBJEXT) \
@@ -120,7 +120,7 @@ lessfs_OBJECTS = $(am_lessfs_OBJECTS)
 lessfs_LDADD = $(LDADD)
 lessfs_LINK = $(CCLD) $(lessfs_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-am_lessfsck_OBJECTS = lessfsck-lib_hamster.$(OBJEXT) \
+am_lessfsck_OBJECTS = \
 	lessfsck-lib_common.$(OBJEXT) lessfsck-lib_lzo.$(OBJEXT) \
 	lessfsck-lib_qlz15.$(OBJEXT) lessfsck-file_io.$(OBJEXT) \
 	lessfsck-lessfsck.$(OBJEXT) lessfsck-lib_crypto.$(OBJEXT) \
@@ -133,7 +133,7 @@ lessfsck_OBJECTS = $(am_lessfsck_OBJECTS)
 lessfsck_LDADD = $(LDADD)
 lessfsck_LINK = $(CCLD) $(lessfsck_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-am_listdb_OBJECTS = listdb-lib_hamster.$(OBJEXT) \
+am_listdb_OBJECTS = \
 	listdb-lib_common.$(OBJEXT) listdb-lib_lzo.$(OBJEXT) \
 	listdb-lib_qlz15.$(OBJEXT) listdb-file_io.$(OBJEXT) \
 	listdb-listdb.$(OBJEXT) listdb-lib_crypto.$(OBJEXT) \
@@ -146,7 +146,7 @@ listdb_OBJECTS = $(am_listdb_OBJECTS)
 listdb_LDADD = $(LDADD)
 listdb_LINK = $(CCLD) $(listdb_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-am_mklessfs_OBJECTS = mklessfs-lib_hamster.$(OBJEXT) \
+am_mklessfs_OBJECTS = mk\
 	mklessfs-lib_common.$(OBJEXT) mklessfs-lib_qlz15.$(OBJEXT) \
 	mklessfs-lib_lzo.$(OBJEXT) mklessfs-file_io.$(OBJEXT) \
 	mklessfs-mklessfs.$(OBJEXT) mklessfs-lib_crypto.$(OBJEXT) \
@@ -159,7 +159,7 @@ mklessfs_OBJECTS = $(am_mklessfs_OBJECTS)
 mklessfs_LDADD = $(LDADD)
 mklessfs_LINK = $(CCLD) $(mklessfs_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-am_replogtool_OBJECTS = replogtool-lib_hamster.$(OBJEXT) \
+am_replogtool_OBJECTS = \
 	replogtool-lib_common.$(OBJEXT) replogtool-lib_lzo.$(OBJEXT) \
 	replogtool-lib_qlz15.$(OBJEXT) replogtool-file_io.$(OBJEXT) \
 	replogtool-replogtool.$(OBJEXT) \
@@ -191,7 +191,6 @@ am__depfiles_remade = ./$(DEPDIR)/lessfs-file_io.Po \
 	./$(DEPDIR)/lessfs-lessfs.Po ./$(DEPDIR)/lessfs-lib_bdb.Po \
 	./$(DEPDIR)/lessfs-lib_cfg.Po ./$(DEPDIR)/lessfs-lib_common.Po \
 	./$(DEPDIR)/lessfs-lib_crypto.Po \
-	./$(DEPDIR)/lessfs-lib_hamster.Po \
 	./$(DEPDIR)/lessfs-lib_lzo.Po ./$(DEPDIR)/lessfs-lib_net.Po \
 	./$(DEPDIR)/lessfs-lib_qlz.Po ./$(DEPDIR)/lessfs-lib_qlz15.Po \
 	./$(DEPDIR)/lessfs-lib_repl.Po ./$(DEPDIR)/lessfs-lib_safe.Po \
@@ -202,7 +201,6 @@ am__depfiles_remade = ./$(DEPDIR)/lessfs-file_io.Po \
 	./$(DEPDIR)/lessfsck-lib_cfg.Po \
 	./$(DEPDIR)/lessfsck-lib_common.Po \
 	./$(DEPDIR)/lessfsck-lib_crypto.Po \
-	./$(DEPDIR)/lessfsck-lib_hamster.Po \
 	./$(DEPDIR)/lessfsck-lib_lzo.Po \
 	./$(DEPDIR)/lessfsck-lib_net.Po \
 	./$(DEPDIR)/lessfsck-lib_qlz.Po \
@@ -214,7 +212,6 @@ am__depfiles_remade = ./$(DEPDIR)/lessfs-file_io.Po \
 	./$(DEPDIR)/listdb-file_io.Po ./$(DEPDIR)/listdb-lib_bdb.Po \
 	./$(DEPDIR)/listdb-lib_cfg.Po ./$(DEPDIR)/listdb-lib_common.Po \
 	./$(DEPDIR)/listdb-lib_crypto.Po \
-	./$(DEPDIR)/listdb-lib_hamster.Po \
 	./$(DEPDIR)/listdb-lib_lzo.Po ./$(DEPDIR)/listdb-lib_net.Po \
 	./$(DEPDIR)/listdb-lib_qlz.Po ./$(DEPDIR)/listdb-lib_qlz15.Po \
 	./$(DEPDIR)/listdb-lib_repl.Po ./$(DEPDIR)/listdb-lib_safe.Po \
@@ -225,7 +222,6 @@ am__depfiles_remade = ./$(DEPDIR)/lessfs-file_io.Po \
 	./$(DEPDIR)/mklessfs-lib_cfg.Po \
 	./$(DEPDIR)/mklessfs-lib_common.Po \
 	./$(DEPDIR)/mklessfs-lib_crypto.Po \
-	./$(DEPDIR)/mklessfs-lib_hamster.Po \
 	./$(DEPDIR)/mklessfs-lib_lzo.Po \
 	./$(DEPDIR)/mklessfs-lib_net.Po \
 	./$(DEPDIR)/mklessfs-lib_qlz.Po \
@@ -240,7 +236,6 @@ am__depfiles_remade = ./$(DEPDIR)/lessfs-file_io.Po \
 	./$(DEPDIR)/replogtool-lib_cfg.Po \
 	./$(DEPDIR)/replogtool-lib_common.Po \
 	./$(DEPDIR)/replogtool-lib_crypto.Po \
-	./$(DEPDIR)/replogtool-lib_hamster.Po \
 	./$(DEPDIR)/replogtool-lib_lzo.Po \
 	./$(DEPDIR)/replogtool-lib_net.Po \
 	./$(DEPDIR)/replogtool-lib_qlz.Po \
@@ -378,7 +373,6 @@ EGREP = @EGREP@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 GREP = @GREP@
-HAMSTERDB_LIBS = @HAMSTERDB_LIBS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -386,7 +380,7 @@ INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
-LIBS = $(CRYPTO_LIBS) $(DEPS_LIBS) $(LZO_LIBS) $(HAMSTERDB_LIBS) $(BERKELEYDB_LIBS) $(SNAPPY_LIBS)
+LIBS = $(CRYPTO_LIBS) $(DEPS_LIBS) $(LZO_LIBS) $(BERKELEYDB_LIBS) $(SNAPPY_LIBS)
 LTLIBOBJS = @LTLIBOBJS@
 LZO_LIBS = @LZO_LIBS@
 MAKEINFO = @MAKEINFO@
@@ -461,15 +455,15 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ARCH := $(shell uname -m)
 man1_MANS = lessfs.1 replogtool.1
-lessfs_SOURCES = lib_hamster.c lib_qlz15.c lib_common.c lib_lzo.c lessfs.c lib_crypto.c lib_safe.c lib_tc.c file_io.c lib_cfg.c lib_str.c lib_net.c lib_qlz.c lib_log.h lib_repl.c lib_bdb.c lib_snappy.c
+lessfs_SOURCES = lib_qlz15.c lib_common.c lib_lzo.c lessfs.c lib_crypto.c lib_safe.c lib_tc.c file_io.c lib_cfg.c lib_str.c lib_net.c lib_qlz.c lib_log.h lib_repl.c lib_bdb.c lib_snappy.c
 lessfs_CFLAGS = -D_REENTRANT -D__USE_LARGEFILE64 -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D${ARCH} -D SYSLOG ${DEPS_CFLAGS}
-mklessfs_SOURCES = lib_hamster.c lib_common.c lib_qlz15.c lib_lzo.c file_io.c mklessfs.c lib_crypto.c lib_safe.c lib_tc.c lib_cfg.c lib_str.c lib_net.c lib_qlz.c lib_repl.c lib_bdb.c lib_snappy.c
+mklessfs_SOURCES = lib_common.c lib_qlz15.c lib_lzo.c file_io.c mklessfs.c lib_crypto.c lib_safe.c lib_tc.c lib_cfg.c lib_str.c lib_net.c lib_qlz.c lib_repl.c lib_bdb.c lib_snappy.c
 mklessfs_CFLAGS = -D_REENTRANT -D__USE_LARGEFILE64 -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D${ARCH} -D SYSLOG ${DEPS_CFLAGS}
-listdb_SOURCES = lib_hamster.c lib_common.c lib_lzo.c lib_qlz15.c file_io.c listdb.c lib_crypto.c lib_safe.c lib_tc.c lib_cfg.c lib_str.c lib_net.c lib_qlz.c lib_repl.c lib_bdb.c lib_snappy.c
+listdb_SOURCES = lib_common.c lib_lzo.c lib_qlz15.c file_io.c listdb.c lib_crypto.c lib_safe.c lib_tc.c lib_cfg.c lib_str.c lib_net.c lib_qlz.c lib_repl.c lib_bdb.c lib_snappy.c
 listdb_CFLAGS = -D_REENTRANT -D__USE_LARGEFILE64 -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D${ARCH} ${DEPS_CFLAGS}
-lessfsck_SOURCES = lib_hamster.c lib_common.c lib_lzo.c lib_qlz15.c file_io.c lessfsck.c lib_crypto.c lib_safe.c lib_tc.c lib_cfg.c lib_str.c lib_net.c lib_qlz.c lib_repl.c lib_bdb.c lib_snappy.c
+lessfsck_SOURCES = lib_common.c lib_lzo.c lib_qlz15.c file_io.c lessfsck.c lib_crypto.c lib_safe.c lib_tc.c lib_cfg.c lib_str.c lib_net.c lib_qlz.c lib_repl.c lib_bdb.c lib_snappy.c
 lessfsck_CFLAGS = -D_REENTRANT -D__USE_LARGEFILE64 -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D${ARCH} -D SYSLOG ${DEPS_CFLAGS} 
-replogtool_SOURCES = lib_hamster.c lib_common.c lib_lzo.c lib_qlz15.c file_io.c replogtool.c lib_crypto.c lib_safe.c lib_tc.c lib_cfg.c lib_str.c lib_net.c lib_qlz.c lib_repl.c lib_bdb.c lib_snappy.c
+replogtool_SOURCES = lib_common.c lib_lzo.c lib_qlz15.c file_io.c replogtool.c lib_crypto.c lib_safe.c lib_tc.c lib_cfg.c lib_str.c lib_net.c lib_qlz.c lib_repl.c lib_bdb.c lib_snappy.c
 replogtool_CFLAGS = -D_REENTRANT -D__USE_LARGEFILE64 -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D${ARCH} ${DEPS_CFLAGS}
 pkgconfigdir = @pkgconfigdir@
 all: config.h
@@ -642,7 +636,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfs-lib_cfg.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfs-lib_common.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfs-lib_crypto.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfs-lib_hamster.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfs-lib_lzo.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfs-lib_net.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfs-lib_qlz.Po@am__quote@ # am--include-marker
@@ -658,7 +651,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfsck-lib_cfg.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfsck-lib_common.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfsck-lib_crypto.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfsck-lib_hamster.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfsck-lib_lzo.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfsck-lib_net.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfsck-lib_qlz.Po@am__quote@ # am--include-marker
@@ -673,7 +665,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/listdb-lib_cfg.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/listdb-lib_common.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/listdb-lib_crypto.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/listdb-lib_hamster.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/listdb-lib_lzo.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/listdb-lib_net.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/listdb-lib_qlz.Po@am__quote@ # am--include-marker
@@ -689,7 +680,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mklessfs-lib_cfg.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mklessfs-lib_common.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mklessfs-lib_crypto.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mklessfs-lib_hamster.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mklessfs-lib_lzo.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mklessfs-lib_net.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mklessfs-lib_qlz.Po@am__quote@ # am--include-marker
@@ -705,7 +695,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/replogtool-lib_cfg.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/replogtool-lib_common.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/replogtool-lib_crypto.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/replogtool-lib_hamster.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/replogtool-lib_lzo.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/replogtool-lib_net.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/replogtool-lib_qlz.Po@am__quote@ # am--include-marker
@@ -737,19 +726,7 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
-lessfs-lib_hamster.o: lib_hamster.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -MT lessfs-lib_hamster.o -MD -MP -MF $(DEPDIR)/lessfs-lib_hamster.Tpo -c -o lessfs-lib_hamster.o `test -f 'lib_hamster.c' || echo '$(srcdir)/'`lib_hamster.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfs-lib_hamster.Tpo $(DEPDIR)/lessfs-lib_hamster.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib_hamster.c' object='lessfs-lib_hamster.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -c -o lessfs-lib_hamster.o `test -f 'lib_hamster.c' || echo '$(srcdir)/'`lib_hamster.c
 
-lessfs-lib_hamster.obj: lib_hamster.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -MT lessfs-lib_hamster.obj -MD -MP -MF $(DEPDIR)/lessfs-lib_hamster.Tpo -c -o lessfs-lib_hamster.obj `if test -f 'lib_hamster.c'; then $(CYGPATH_W) 'lib_hamster.c'; else $(CYGPATH_W) '$(srcdir)/lib_hamster.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfs-lib_hamster.Tpo $(DEPDIR)/lessfs-lib_hamster.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib_hamster.c' object='lessfs-lib_hamster.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -c -o lessfs-lib_hamster.obj `if test -f 'lib_hamster.c'; then $(CYGPATH_W) 'lib_hamster.c'; else $(CYGPATH_W) '$(srcdir)/lib_hamster.c'; fi`
 
 lessfs-lib_qlz15.o: lib_qlz15.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -MT lessfs-lib_qlz15.o -MD -MP -MF $(DEPDIR)/lessfs-lib_qlz15.Tpo -c -o lessfs-lib_qlz15.o `test -f 'lib_qlz15.c' || echo '$(srcdir)/'`lib_qlz15.c
@@ -961,19 +938,7 @@ lessfs-lib_snappy.obj: lib_snappy.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -c -o lessfs-lib_snappy.obj `if test -f 'lib_snappy.c'; then $(CYGPATH_W) 'lib_snappy.c'; else $(CYGPATH_W) '$(srcdir)/lib_snappy.c'; fi`
 
-lessfsck-lib_hamster.o: lib_hamster.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -MT lessfsck-lib_hamster.o -MD -MP -MF $(DEPDIR)/lessfsck-lib_hamster.Tpo -c -o lessfsck-lib_hamster.o `test -f 'lib_hamster.c' || echo '$(srcdir)/'`lib_hamster.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfsck-lib_hamster.Tpo $(DEPDIR)/lessfsck-lib_hamster.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib_hamster.c' object='lessfsck-lib_hamster.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -c -o lessfsck-lib_hamster.o `test -f 'lib_hamster.c' || echo '$(srcdir)/'`lib_hamster.c
 
-lessfsck-lib_hamster.obj: lib_hamster.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -MT lessfsck-lib_hamster.obj -MD -MP -MF $(DEPDIR)/lessfsck-lib_hamster.Tpo -c -o lessfsck-lib_hamster.obj `if test -f 'lib_hamster.c'; then $(CYGPATH_W) 'lib_hamster.c'; else $(CYGPATH_W) '$(srcdir)/lib_hamster.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfsck-lib_hamster.Tpo $(DEPDIR)/lessfsck-lib_hamster.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib_hamster.c' object='lessfsck-lib_hamster.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -c -o lessfsck-lib_hamster.obj `if test -f 'lib_hamster.c'; then $(CYGPATH_W) 'lib_hamster.c'; else $(CYGPATH_W) '$(srcdir)/lib_hamster.c'; fi`
 
 lessfsck-lib_common.o: lib_common.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -MT lessfsck-lib_common.o -MD -MP -MF $(DEPDIR)/lessfsck-lib_common.Tpo -c -o lessfsck-lib_common.o `test -f 'lib_common.c' || echo '$(srcdir)/'`lib_common.c
@@ -1185,19 +1150,7 @@ lessfsck-lib_snappy.obj: lib_snappy.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -c -o lessfsck-lib_snappy.obj `if test -f 'lib_snappy.c'; then $(CYGPATH_W) 'lib_snappy.c'; else $(CYGPATH_W) '$(srcdir)/lib_snappy.c'; fi`
 
-listdb-lib_hamster.o: lib_hamster.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -MT listdb-lib_hamster.o -MD -MP -MF $(DEPDIR)/listdb-lib_hamster.Tpo -c -o listdb-lib_hamster.o `test -f 'lib_hamster.c' || echo '$(srcdir)/'`lib_hamster.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/listdb-lib_hamster.Tpo $(DEPDIR)/listdb-lib_hamster.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib_hamster.c' object='listdb-lib_hamster.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -c -o listdb-lib_hamster.o `test -f 'lib_hamster.c' || echo '$(srcdir)/'`lib_hamster.c
 
-listdb-lib_hamster.obj: lib_hamster.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -MT listdb-lib_hamster.obj -MD -MP -MF $(DEPDIR)/listdb-lib_hamster.Tpo -c -o listdb-lib_hamster.obj `if test -f 'lib_hamster.c'; then $(CYGPATH_W) 'lib_hamster.c'; else $(CYGPATH_W) '$(srcdir)/lib_hamster.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/listdb-lib_hamster.Tpo $(DEPDIR)/listdb-lib_hamster.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib_hamster.c' object='listdb-lib_hamster.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -c -o listdb-lib_hamster.obj `if test -f 'lib_hamster.c'; then $(CYGPATH_W) 'lib_hamster.c'; else $(CYGPATH_W) '$(srcdir)/lib_hamster.c'; fi`
 
 listdb-lib_common.o: lib_common.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -MT listdb-lib_common.o -MD -MP -MF $(DEPDIR)/listdb-lib_common.Tpo -c -o listdb-lib_common.o `test -f 'lib_common.c' || echo '$(srcdir)/'`lib_common.c
@@ -1409,19 +1362,7 @@ listdb-lib_snappy.obj: lib_snappy.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -c -o listdb-lib_snappy.obj `if test -f 'lib_snappy.c'; then $(CYGPATH_W) 'lib_snappy.c'; else $(CYGPATH_W) '$(srcdir)/lib_snappy.c'; fi`
 
-mklessfs-lib_hamster.o: lib_hamster.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -MT mklessfs-lib_hamster.o -MD -MP -MF $(DEPDIR)/mklessfs-lib_hamster.Tpo -c -o mklessfs-lib_hamster.o `test -f 'lib_hamster.c' || echo '$(srcdir)/'`lib_hamster.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mklessfs-lib_hamster.Tpo $(DEPDIR)/mklessfs-lib_hamster.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib_hamster.c' object='mklessfs-lib_hamster.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -c -o mklessfs-lib_hamster.o `test -f 'lib_hamster.c' || echo '$(srcdir)/'`lib_hamster.c
 
-mklessfs-lib_hamster.obj: lib_hamster.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -MT mklessfs-lib_hamster.obj -MD -MP -MF $(DEPDIR)/mklessfs-lib_hamster.Tpo -c -o mklessfs-lib_hamster.obj `if test -f 'lib_hamster.c'; then $(CYGPATH_W) 'lib_hamster.c'; else $(CYGPATH_W) '$(srcdir)/lib_hamster.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mklessfs-lib_hamster.Tpo $(DEPDIR)/mklessfs-lib_hamster.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib_hamster.c' object='mklessfs-lib_hamster.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -c -o mklessfs-lib_hamster.obj `if test -f 'lib_hamster.c'; then $(CYGPATH_W) 'lib_hamster.c'; else $(CYGPATH_W) '$(srcdir)/lib_hamster.c'; fi`
 
 mklessfs-lib_common.o: lib_common.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -MT mklessfs-lib_common.o -MD -MP -MF $(DEPDIR)/mklessfs-lib_common.Tpo -c -o mklessfs-lib_common.o `test -f 'lib_common.c' || echo '$(srcdir)/'`lib_common.c
@@ -1633,19 +1574,7 @@ mklessfs-lib_snappy.obj: lib_snappy.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -c -o mklessfs-lib_snappy.obj `if test -f 'lib_snappy.c'; then $(CYGPATH_W) 'lib_snappy.c'; else $(CYGPATH_W) '$(srcdir)/lib_snappy.c'; fi`
 
-replogtool-lib_hamster.o: lib_hamster.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -MT replogtool-lib_hamster.o -MD -MP -MF $(DEPDIR)/replogtool-lib_hamster.Tpo -c -o replogtool-lib_hamster.o `test -f 'lib_hamster.c' || echo '$(srcdir)/'`lib_hamster.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/replogtool-lib_hamster.Tpo $(DEPDIR)/replogtool-lib_hamster.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib_hamster.c' object='replogtool-lib_hamster.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -c -o replogtool-lib_hamster.o `test -f 'lib_hamster.c' || echo '$(srcdir)/'`lib_hamster.c
 
-replogtool-lib_hamster.obj: lib_hamster.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -MT replogtool-lib_hamster.obj -MD -MP -MF $(DEPDIR)/replogtool-lib_hamster.Tpo -c -o replogtool-lib_hamster.obj `if test -f 'lib_hamster.c'; then $(CYGPATH_W) 'lib_hamster.c'; else $(CYGPATH_W) '$(srcdir)/lib_hamster.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/replogtool-lib_hamster.Tpo $(DEPDIR)/replogtool-lib_hamster.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib_hamster.c' object='replogtool-lib_hamster.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -c -o replogtool-lib_hamster.obj `if test -f 'lib_hamster.c'; then $(CYGPATH_W) 'lib_hamster.c'; else $(CYGPATH_W) '$(srcdir)/lib_hamster.c'; fi`
 
 replogtool-lib_common.o: lib_common.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -MT replogtool-lib_common.o -MD -MP -MF $(DEPDIR)/replogtool-lib_common.Tpo -c -o replogtool-lib_common.o `test -f 'lib_common.c' || echo '$(srcdir)/'`lib_common.c
@@ -2178,7 +2107,6 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/lessfs-lib_cfg.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_common.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_crypto.Po
-	-rm -f ./$(DEPDIR)/lessfs-lib_hamster.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_lzo.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_net.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_qlz.Po
@@ -2194,7 +2122,6 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/lessfsck-lib_cfg.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lib_common.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lib_crypto.Po
-	-rm -f ./$(DEPDIR)/lessfsck-lib_hamster.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lib_lzo.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lib_net.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lib_qlz.Po
@@ -2209,7 +2136,6 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/listdb-lib_cfg.Po
 	-rm -f ./$(DEPDIR)/listdb-lib_common.Po
 	-rm -f ./$(DEPDIR)/listdb-lib_crypto.Po
-	-rm -f ./$(DEPDIR)/listdb-lib_hamster.Po
 	-rm -f ./$(DEPDIR)/listdb-lib_lzo.Po
 	-rm -f ./$(DEPDIR)/listdb-lib_net.Po
 	-rm -f ./$(DEPDIR)/listdb-lib_qlz.Po
@@ -2225,7 +2151,6 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/mklessfs-lib_cfg.Po
 	-rm -f ./$(DEPDIR)/mklessfs-lib_common.Po
 	-rm -f ./$(DEPDIR)/mklessfs-lib_crypto.Po
-	-rm -f ./$(DEPDIR)/mklessfs-lib_hamster.Po
 	-rm -f ./$(DEPDIR)/mklessfs-lib_lzo.Po
 	-rm -f ./$(DEPDIR)/mklessfs-lib_net.Po
 	-rm -f ./$(DEPDIR)/mklessfs-lib_qlz.Po
@@ -2241,7 +2166,6 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/replogtool-lib_cfg.Po
 	-rm -f ./$(DEPDIR)/replogtool-lib_common.Po
 	-rm -f ./$(DEPDIR)/replogtool-lib_crypto.Po
-	-rm -f ./$(DEPDIR)/replogtool-lib_hamster.Po
 	-rm -f ./$(DEPDIR)/replogtool-lib_lzo.Po
 	-rm -f ./$(DEPDIR)/replogtool-lib_net.Po
 	-rm -f ./$(DEPDIR)/replogtool-lib_qlz.Po
@@ -2305,7 +2229,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/lessfs-lib_cfg.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_common.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_crypto.Po
-	-rm -f ./$(DEPDIR)/lessfs-lib_hamster.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_lzo.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_net.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_qlz.Po
@@ -2321,7 +2244,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/lessfsck-lib_cfg.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lib_common.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lib_crypto.Po
-	-rm -f ./$(DEPDIR)/lessfsck-lib_hamster.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lib_lzo.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lib_net.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lib_qlz.Po
@@ -2336,7 +2258,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/listdb-lib_cfg.Po
 	-rm -f ./$(DEPDIR)/listdb-lib_common.Po
 	-rm -f ./$(DEPDIR)/listdb-lib_crypto.Po
-	-rm -f ./$(DEPDIR)/listdb-lib_hamster.Po
 	-rm -f ./$(DEPDIR)/listdb-lib_lzo.Po
 	-rm -f ./$(DEPDIR)/listdb-lib_net.Po
 	-rm -f ./$(DEPDIR)/listdb-lib_qlz.Po
@@ -2352,7 +2273,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/mklessfs-lib_cfg.Po
 	-rm -f ./$(DEPDIR)/mklessfs-lib_common.Po
 	-rm -f ./$(DEPDIR)/mklessfs-lib_crypto.Po
-	-rm -f ./$(DEPDIR)/mklessfs-lib_hamster.Po
 	-rm -f ./$(DEPDIR)/mklessfs-lib_lzo.Po
 	-rm -f ./$(DEPDIR)/mklessfs-lib_net.Po
 	-rm -f ./$(DEPDIR)/mklessfs-lib_qlz.Po
@@ -2368,7 +2288,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/replogtool-lib_cfg.Po
 	-rm -f ./$(DEPDIR)/replogtool-lib_common.Po
 	-rm -f ./$(DEPDIR)/replogtool-lib_crypto.Po
-	-rm -f ./$(DEPDIR)/replogtool-lib_hamster.Po
 	-rm -f ./$(DEPDIR)/replogtool-lib_lzo.Po
 	-rm -f ./$(DEPDIR)/replogtool-lib_net.Po
 	-rm -f ./$(DEPDIR)/replogtool-lib_qlz.Po

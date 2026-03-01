@@ -34,8 +34,8 @@ lessfs /etc/lessfs.cfg /your/mountpoint
 ---
 
 Lessfs now supports BerkeleyDB next to tokyocabinet
-and hamsterdb. The decision to add BerkeleyDB was 
-taken because both tokyocabinet and hamsterdb failed
+. The decision to add BerkeleyDB was 
+taken because tokyocabinet failed
 to provide the reliability that is needed for the
 enterprise.
 

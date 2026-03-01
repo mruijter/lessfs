@@ -20,8 +20,6 @@ check_prerequisites()
   MSG="liblzo not found"
   ldconfig  -v | grep lzo
   [ $? != 0 ] && end_exit
-  MSG="hamsterdb not found"
-  ldconfig  -v | grep hamsterdb
   [ $? != 0 ] && end_exit
   MSG="BerkeleyDB not found"
   ldconfig  -v | grep db-4.8
@@ -44,7 +42,7 @@ check_prerequisites()
 test_backends()
 {
 # GENERAL TEST
-   BACKENDS="--with-tokyocabinet --with-berkeleydb --with-hamsterdb"
+   BACKENDS="--with-tokyocabinet --with-berkeleydb"
    for b in $BACKENDS
    do
       ./configure $b $CUROPT
