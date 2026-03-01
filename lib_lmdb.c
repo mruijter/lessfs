@@ -368,9 +368,11 @@ void bdb_close(void)
         write_txn = NULL;
     }
     close_trees();
-    fsync(fdbdta);
-    close(fdbdta);
-    free(config->nexthash);
+    if (config->blockdata_io_type == FILE_IO) {
+        fsync(fdbdta);
+        close(fdbdta);
+        free(config->nexthash);
+    }
     flock(frepl, LOCK_UN);
     fsync(frepl);
     close(frepl);
@@ -426,7 +428,6 @@ DAT *search_dbdata(int database, void *keydata,
                    int len, bool lock)
 {
     MDB_dbi dbi;
-    MDB_txn *rtxn;
     MDB_val mkey, mdata;
     DAT *result = NULL;
     int ret;
@@ -437,19 +438,10 @@ DAT *search_dbdata(int database, void *keydata,
 
     dbi = lmdb_set_db(database);
 
-    /* Use a read-only txn for lookups */
-    ret = mdb_txn_begin(lmdb_env, NULL,
-                        MDB_RDONLY, &rtxn);
-    if (ret != 0) {
-        if (lock)
-            release_bdb_lock();
-        die_lmdberr("search_dbdata txn_begin: %s",
-                     mdb_strerror(ret));
-    }
 
     mkey.mv_data = keydata;
     mkey.mv_size = len;
-    ret = mdb_get(rtxn, dbi, &mkey, &mdata);
+    ret = mdb_get(write_txn, dbi, &mkey, &mdata);
     if (ret == 0) {
         result = s_malloc(sizeof(DAT));
         result->data = s_malloc(mdata.mv_size);
@@ -457,7 +449,6 @@ DAT *search_dbdata(int database, void *keydata,
                mdata.mv_size);
         result->size = mdata.mv_size;
     }
-    mdb_txn_abort(rtxn);
 
     if (lock)
         release_bdb_lock();
@@ -667,7 +658,6 @@ int bt_entry_exists(int database, void *keydata,
                     int datalen)
 {
     MDB_dbi dbi;
-    MDB_txn *rtxn;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
     int ret, found = 0;
@@ -676,16 +666,8 @@ int bt_entry_exists(int database, void *keydata,
     bdb_lock((char *) __PRETTY_FUNCTION__);
     dbi = lmdb_set_db(database);
 
-    ret = mdb_txn_begin(lmdb_env, NULL,
-                        MDB_RDONLY, &rtxn);
+    ret = mdb_cursor_open(write_txn, dbi, &cur);
     if (ret != 0) {
-        release_bdb_lock();
-        die_lmdberr("bt_entry_exists txn: %s",
-                     mdb_strerror(ret));
-    }
-    ret = mdb_cursor_open(rtxn, dbi, &cur);
-    if (ret != 0) {
-        mdb_txn_abort(rtxn);
         release_bdb_lock();
         die_lmdberr("bt_entry_exists cursor: %s",
                      mdb_strerror(ret));
@@ -699,7 +681,6 @@ int bt_entry_exists(int database, void *keydata,
     if (ret == 0)
         found = 1;
     mdb_cursor_close(cur);
-    mdb_txn_abort(rtxn);
     release_bdb_lock();
     EFUNC;
     return found;
@@ -710,7 +691,6 @@ DAT *btsearch_keyval(int database, void *keydata,
                      int vallen, bool lock)
 {
     MDB_dbi dbi;
-    MDB_txn *rtxn;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
     DAT *result = NULL;
@@ -721,16 +701,8 @@ DAT *btsearch_keyval(int database, void *keydata,
         bdb_lock((char *) __PRETTY_FUNCTION__);
     dbi = lmdb_set_db(database);
 
-    ret = mdb_txn_begin(lmdb_env, NULL,
-                        MDB_RDONLY, &rtxn);
+    ret = mdb_cursor_open(write_txn, dbi, &cur);
     if (ret != 0) {
-        if (lock) release_bdb_lock();
-        die_lmdberr("btsearch_keyval txn: %s",
-                     mdb_strerror(ret));
-    }
-    ret = mdb_cursor_open(rtxn, dbi, &cur);
-    if (ret != 0) {
-        mdb_txn_abort(rtxn);
         if (lock) release_bdb_lock();
         die_lmdberr("btsearch_keyval cursor: %s",
                      mdb_strerror(ret));
@@ -740,16 +712,22 @@ DAT *btsearch_keyval(int database, void *keydata,
     mdata.mv_data = val;
     mdata.mv_size = vallen;
 
-    ret = mdb_cursor_get(cur, &mkey, &mdata,
-                         MDB_GET_BOTH_RANGE);
+    if (val == NULL || vallen == 0) {
+        ret = mdb_cursor_get(cur, &mkey, &mdata,
+                             MDB_SET_KEY);
+    } else {
+        ret = mdb_cursor_get(cur, &mkey, &mdata,
+                             MDB_GET_BOTH_RANGE);
+    }
     if (ret == 0) {
         /*
          * Verify the value starts with the
          * requested prefix.
          */
-        if (mdata.mv_size >= (size_t) vallen
+        if (vallen == 0
+                || (mdata.mv_size >= (size_t) vallen
                 && 0 == memcmp(mdata.mv_data,
-                               val, vallen)) {
+                               val, vallen))) {
             result = s_malloc(sizeof(DAT));
             result->data = s_malloc(mdata.mv_size);
             memcpy(result->data, mdata.mv_data,
@@ -758,7 +736,6 @@ DAT *btsearch_keyval(int database, void *keydata,
         }
     }
     mdb_cursor_close(cur);
-    mdb_txn_abort(rtxn);
     if (lock)
         release_bdb_lock();
     EFUNC;
@@ -805,7 +782,6 @@ int btdelete_curkey(int database, void *keydata,
 DDSTAT *dnode_bname_to_inode(void *dinode, int dlen,
                              char *bname)
 {
-    MDB_txn *rtxn;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
     int ret;
@@ -822,15 +798,8 @@ DDSTAT *dnode_bname_to_inode(void *dinode, int dlen,
     FUNC;
     bdb_lock((char *) __PRETTY_FUNCTION__);
 
-    ret = mdb_txn_begin(lmdb_env, NULL,
-                        MDB_RDONLY, &rtxn);
+    ret = mdb_cursor_open(write_txn, dbi_dbdirent, &cur);
     if (ret != 0) {
-        release_bdb_lock();
-        return NULL;
-    }
-    ret = mdb_cursor_open(rtxn, dbi_dbdirent, &cur);
-    if (ret != 0) {
-        mdb_txn_abort(rtxn);
         release_bdb_lock();
         return NULL;
     }
@@ -906,7 +875,6 @@ DDSTAT *dnode_bname_to_inode(void *dinode, int dlen,
                                  MDB_NEXT_DUP));
 end:
     mdb_cursor_close(cur);
-    mdb_txn_abort(rtxn);
     release_bdb_lock();
     if (filestat) {
         LDEBUG("dnode_bname_to_inode: %s inode %llu",
@@ -924,7 +892,6 @@ unsigned long long has_nodes(unsigned long long inode)
     DAT *filedata;
     bool dotdir = 0;
     DDSTAT *ddstat;
-    MDB_txn *rtxn;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
     int ret;
@@ -932,15 +899,8 @@ unsigned long long has_nodes(unsigned long long inode)
     FUNC;
     bdb_lock((char *) __PRETTY_FUNCTION__);
 
-    ret = mdb_txn_begin(lmdb_env, NULL,
-                        MDB_RDONLY, &rtxn);
+    ret = mdb_cursor_open(write_txn, dbi_dbdirent, &cur);
     if (ret != 0) {
-        release_bdb_lock();
-        return 0;
-    }
-    ret = mdb_cursor_open(rtxn, dbi_dbdirent, &cur);
-    if (ret != 0) {
-        mdb_txn_abort(rtxn);
         release_bdb_lock();
         return 0;
     }
@@ -979,7 +939,6 @@ unsigned long long has_nodes(unsigned long long inode)
                                  MDB_NEXT_DUP));
 end:
     mdb_cursor_close(cur);
-    mdb_txn_abort(rtxn);
     release_bdb_lock();
     LDEBUG("has_nodes inode %llu contains %llu files",
            inode, res);
@@ -992,7 +951,6 @@ int fs_readdir(const char *path, void *buf,
                struct fuse_file_info *fi)
 {
     int retcode = 0;
-    MDB_txn *rtxn;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
     int ret;
@@ -1012,15 +970,8 @@ int fs_readdir(const char *path, void *buf,
 
     bdb_lock((char *) __PRETTY_FUNCTION__);
 
-    ret = mdb_txn_begin(lmdb_env, NULL,
-                        MDB_RDONLY, &rtxn);
+    ret = mdb_cursor_open(write_txn, dbi_dbdirent, &cur);
     if (ret != 0) {
-        release_bdb_lock();
-        return -EIO;
-    }
-    ret = mdb_cursor_open(rtxn, dbi_dbdirent, &cur);
-    if (ret != 0) {
-        mdb_txn_abort(rtxn);
         release_bdb_lock();
         return -EIO;
     }
@@ -1057,7 +1008,6 @@ int fs_readdir(const char *path, void *buf,
                          &mdata, MDB_NEXT_DUP));
     }
     mdb_cursor_close(cur);
-    mdb_txn_abort(rtxn);
     release_bdb_lock();
     LDEBUG("fs_readdir: return");
     return retcode;
@@ -1068,7 +1018,6 @@ void fs_read_hardlink(struct stat stbuf,
                       fuse_fill_dir_t filler,
                       struct fuse_file_info *fi)
 {
-    MDB_txn *rtxn;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
     DINOINO dinoino;
@@ -1078,13 +1027,8 @@ void fs_read_hardlink(struct stat stbuf,
     dinoino.dirnode = stbuf.st_ino;
     dinoino.inode = ddstat->stbuf.st_ino;
 
-    ret = mdb_txn_begin(lmdb_env, NULL,
-                        MDB_RDONLY, &rtxn);
-    if (ret != 0)
-        return;
-    ret = mdb_cursor_open(rtxn, dbi_dbl, &cur);
+    ret = mdb_cursor_open(write_txn, dbi_dbl, &cur);
     if (ret != 0) {
-        mdb_txn_abort(rtxn);
         return;
     }
 
@@ -1106,13 +1050,11 @@ void fs_read_hardlink(struct stat stbuf,
                          &mdata, MDB_NEXT_DUP));
     }
     mdb_cursor_close(cur);
-    mdb_txn_abort(rtxn);
     EFUNC;
 }
 
 int count_dirlinks(void *linkstr, int len)
 {
-    MDB_txn *rtxn;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
     int count = 0, ret;
@@ -1120,15 +1062,8 @@ int count_dirlinks(void *linkstr, int len)
     FUNC;
     bdb_lock((char *) __PRETTY_FUNCTION__);
 
-    ret = mdb_txn_begin(lmdb_env, NULL,
-                        MDB_RDONLY, &rtxn);
+    ret = mdb_cursor_open(write_txn, dbi_dbl, &cur);
     if (ret != 0) {
-        release_bdb_lock();
-        return 0;
-    }
-    ret = mdb_cursor_open(rtxn, dbi_dbl, &cur);
-    if (ret != 0) {
-        mdb_txn_abort(rtxn);
         release_bdb_lock();
         return 0;
     }
@@ -1147,7 +1082,6 @@ int count_dirlinks(void *linkstr, int len)
                                  MDB_NEXT_DUP));
 end_exit:
     mdb_cursor_close(cur);
-    mdb_txn_abort(rtxn);
     release_bdb_lock();
     EFUNC;
     return count;
@@ -1422,20 +1356,13 @@ char *lessfs_stats()
     int count = 1;
     unsigned int lcount = 0;
     float ratio;
-    MDB_txn *rtxn;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
     MDB_stat mst;
     int ret;
 
     bdb_lock((char *) __PRETTY_FUNCTION__);
-    ret = mdb_txn_begin(lmdb_env, NULL,
-                        MDB_RDONLY, &rtxn);
-    if (ret != 0) {
-        release_bdb_lock();
-        return s_strdup("Error: cannot open txn");
-    }
-    mdb_stat(rtxn, dbi_dbp, &mst);
+    mdb_stat(write_txn, dbi_dbp, &mst);
     lcount = mst.ms_entries;
     lcount++;
     lines = s_malloc(lcount * sizeof(char *));
@@ -1445,9 +1372,8 @@ char *lessfs_stats()
             "  COMPRESSED_SIZE"
             "            RATIO FILENAME\n");
 
-    ret = mdb_cursor_open(rtxn, dbi_dbp, &cur);
+    ret = mdb_cursor_open(write_txn, dbi_dbp, &cur);
     if (ret != 0) {
-        mdb_txn_abort(rtxn);
         release_bdb_lock();
         s_free((char *) lines[0]);
         s_free(lines);
@@ -1517,7 +1443,6 @@ char *lessfs_stats()
     }
     lfsmsg = as_strarrcat(lines, count);
     mdb_cursor_close(cur);
-    mdb_txn_abort(rtxn);
     while (count) {
         s_free((char *) lines[--count]);
     }
@@ -1535,18 +1460,12 @@ void listdbp()
     char *nfi = "NFI";
     char *seq = "SEQ";
     CRYPTO *crypto;
-    MDB_txn *rtxn;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
     int count = 0, ret;
 
-    ret = mdb_txn_begin(lmdb_env, NULL,
-                        MDB_RDONLY, &rtxn);
-    if (ret != 0)
-        return;
-    ret = mdb_cursor_open(rtxn, dbi_dbp, &cur);
+    ret = mdb_cursor_open(write_txn, dbi_dbp, &cur);
     if (ret != 0) {
-        mdb_txn_abort(rtxn);
         return;
     }
     while (0 == mdb_cursor_get(cur, &mkey, &mdata,
@@ -1611,25 +1530,18 @@ void listdbp()
         }
     }
     mdb_cursor_close(cur);
-    mdb_txn_abort(rtxn);
 }
 
 void listdirent()
 {
     unsigned long long *dir;
     unsigned long long *ent;
-    MDB_txn *rtxn;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
     int ret;
 
-    ret = mdb_txn_begin(lmdb_env, NULL,
-                        MDB_RDONLY, &rtxn);
-    if (ret != 0)
-        return;
-    ret = mdb_cursor_open(rtxn, dbi_dbdirent, &cur);
+    ret = mdb_cursor_open(write_txn, dbi_dbdirent, &cur);
     if (ret != 0) {
-        mdb_txn_abort(rtxn);
         return;
     }
     while (0 == mdb_cursor_get(cur, &mkey, &mdata,
@@ -1641,25 +1553,18 @@ void listdirent()
         printf("%llu:%llu\n", *dir, *ent);
     }
     mdb_cursor_close(cur);
-    mdb_txn_abort(rtxn);
 }
 
 void list_hardlinks()
 {
     unsigned long long inode;
     DINOINO dinoino;
-    MDB_txn *rtxn;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
     int ret;
 
-    ret = mdb_txn_begin(lmdb_env, NULL,
-                        MDB_RDONLY, &rtxn);
-    if (ret != 0)
-        return;
-    ret = mdb_cursor_open(rtxn, dbi_dbl, &cur);
+    ret = mdb_cursor_open(write_txn, dbi_dbl, &cur);
     if (ret != 0) {
-        mdb_txn_abort(rtxn);
         return;
     }
     while (0 == mdb_cursor_get(cur, &mkey, &mdata,
@@ -1681,7 +1586,6 @@ void list_hardlinks()
         }
     }
     mdb_cursor_close(cur);
-    mdb_txn_abort(rtxn);
 }
 
 void listdbb()
@@ -1689,18 +1593,12 @@ void listdbb()
     char *asc_hash = NULL;
     unsigned long long inode;
     unsigned long long blocknr;
-    MDB_txn *rtxn;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
     int ret;
 
-    ret = mdb_txn_begin(lmdb_env, NULL,
-                        MDB_RDONLY, &rtxn);
-    if (ret != 0)
-        return;
-    ret = mdb_cursor_open(rtxn, dbi_dbb, &cur);
+    ret = mdb_cursor_open(write_txn, dbi_dbb, &cur);
     if (ret != 0) {
-        mdb_txn_abort(rtxn);
         return;
     }
     while (0 == mdb_cursor_get(cur, &mkey, &mdata,
@@ -1718,7 +1616,6 @@ void listdbb()
         s_free(asc_hash);
     }
     mdb_cursor_close(cur);
-    mdb_txn_abort(rtxn);
 }
 
 void listfree(int freespace_summary)
@@ -1727,19 +1624,13 @@ void listfree(int freespace_summary)
     unsigned long long offset;
     unsigned long freespace = 0;
     struct truncate_thread_data *trunc_data;
-    MDB_txn *rtxn;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
     FREEBLOCK *freeblock;
     int ret;
 
-    ret = mdb_txn_begin(lmdb_env, NULL,
-                        MDB_RDONLY, &rtxn);
-    if (ret != 0)
-        return;
-    ret = mdb_cursor_open(rtxn, dbi_freelist, &cur);
+    ret = mdb_cursor_open(write_txn, dbi_freelist, &cur);
     if (ret != 0) {
-        mdb_txn_abort(rtxn);
         return;
     }
     while (0 == mdb_cursor_get(cur, &mkey, &mdata,
@@ -1789,7 +1680,6 @@ void listfree(int freespace_summary)
     printf("Total available space in %s : %lu\n\n",
            config->blockdata, freespace);
     mdb_cursor_close(cur);
-    mdb_txn_abort(rtxn);
 }
 
 void listdbu()
@@ -1810,23 +1700,17 @@ void flistdbu()
     INUSE *inuse;
     unsigned long long nexto;
     unsigned long rsize;
-    MDB_txn *rtxn;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
     int ret;
 
-    ret = mdb_txn_begin(lmdb_env, NULL,
-                        MDB_RDONLY, &rtxn);
-    if (ret != 0)
-        return;
-    ret = mdb_cursor_open(rtxn, dbi_dbu, &cur);
+    ret = mdb_cursor_open(write_txn, dbi_dbu, &cur);
     if (ret != 0) {
-        mdb_txn_abort(rtxn);
         return;
     }
     while (0 == mdb_cursor_get(cur, &mkey, &mdata,
                                MDB_NEXT)) {
-        if (0 == memcmp(config->nexthash,
+        if (config->nexthash && 0 == memcmp(config->nexthash,
                         mkey.mv_data,
                         config->hashlen)) {
             memcpy(&nexto, mdata.mv_data,
@@ -1860,7 +1744,6 @@ void flistdbu()
         }
     }
     mdb_cursor_close(cur);
-    mdb_txn_abort(rtxn);
 }
 
 #endif /* LMDB */

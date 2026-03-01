@@ -1082,9 +1082,24 @@ int file_unlink_file(const char *path)
         res =
             btdelete_curkey(DBL, &dinoino, sizeof(DINOINO), bname,
                             strlen(bname), (char *) __PRETTY_FUNCTION__);
-        btdelete_curkey(DBL, &ddstat->stbuf.st_ino,
-                        sizeof(unsigned long long), &dinoino,
-                        sizeof(DINOINO), (char *) __PRETTY_FUNCTION__);
+        /* Only remove the inode->DINOINO reverse mapping
+           when no more links from this dir remain for
+           this inode. LMDB DUPSORT stores identical
+           key-value pairs only once, unlike BDB. */
+        {
+            DAT *remaining = btsearch_keyval(
+                DBL, &dinoino, sizeof(DINOINO),
+                NULL, 0, LOCK);
+            if (remaining == NULL) {
+                btdelete_curkey(DBL,
+                    &ddstat->stbuf.st_ino,
+                    sizeof(unsigned long long),
+                    &dinoino, sizeof(DINOINO),
+                    (char *) __PRETTY_FUNCTION__);
+            } else {
+                DATfree(remaining);
+            }
+        }
 // Restore to regular file settings and clean up.
         if (ddstat->stbuf.st_nlink == 1) {
             vdirnode =

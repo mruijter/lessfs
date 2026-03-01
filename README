@@ -2,10 +2,12 @@ lessfs requires tokyocabinet's tcutil library (TCTREE)
 to be installed on the system for in-memory caching.
 http://tokyocabinet.sourceforge.net/index.html
 
-lessfs uses BerkeleyDB as its database backend.
-LMDB support is planned as a future replacement.
+lessfs uses lmdb as its database backend.
+BerkeleyDB is still supported but no longer preferred.
+
+As backend storage for the data chunk_io with o_direct is recommended.
 
 To build from source:
-./configure --with-berkeleydb
+./configure (defaults to using lmdb).
 make
 make install
