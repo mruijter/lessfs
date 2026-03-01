@@ -18,5 +18,5 @@ or even better SSD.
 
 BLOCKUSAGE_PATH and FILEBLOCK_PATH are the most important
 candidates to store on separate disks when lessfs is 
-used with tokyocabinet. If you are using BerkeleyDB or 
+used with the file_io backend. If you are using BerkeleyDB or 
 berkeleydb then point META_PATH to your low latency (SSD) drive.

@@ -7,7 +7,7 @@ Group:		Applications/System
 URL:            http://www.lessfs.com
 Source:         http://downloads.sourceforge.net/%{name}/%{name}-%{version}.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}
-BuildRequires:  tokyocabinet-devel 
+BuildRequires:  tokyocabinet-devel  # needed for TCTREE
 BuildRequires:  db4-devel 
 BuildRequires:  openssl-devel 
 BuildRequires:  mhash-devel
@@ -16,7 +16,7 @@ BuildRequires:  autoconf
 
 Requires: fuse
 Requires: mhash
-Requires: tokyocabinet
+Requires: tokyocabinet  # needed for TCTREE
 Requires: db4
 
 %description
@@ -328,7 +328,7 @@ rm -rf %{buildroot}
 - This release enables support for transactions/checkpointing.
 - Lessfs now no longer needs fsck after a crash. Also new is the ability to
 - run a program when disk space drops below a certain amount of space. 
-- This program can be used to free up space when the tokyocabinet 
+- This program can be used to free up space in the database 
 - datastore is used.
 * Sun Jan 24 2010 Mark Ruijter <mruijter@gmail.com> - 1.0.1
 - Fixes a rare race condition that can cause lessfs to crash.

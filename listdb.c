@@ -32,8 +32,6 @@
 #include <sys/types.h>
 
 #include <tcutil.h>
-#include <tchdb.h>
-#include <tcbdb.h>
 #include <stdbool.h>
 #include "lib_safe.h"
 #include "lib_cfg.h"
@@ -45,14 +43,14 @@
 #endif
 #include "lib_qlz.h"
 #include "lib_common.h"
-#ifndef BERKELEYDB
-#include "lib_tc.h"
-#endif
 #include "file_io.h"
 #include "commons.h"
 #ifdef BERKELEYDB
 #include <db.h>
 #include "lib_bdb.h"
+#elif defined(LMDB)
+#include <lmdb.h>
+#include "lib_lmdb.h"
 #endif
 
 #ifdef i386
@@ -129,13 +127,7 @@ int main(int argc, char *argv[])
        printf("\n\ndbp\n");
        listdbp();
        printf("\n\ndbu\n");
-       if (NULL != config->blockdatabs) {
-           listdbu();
-           printf("\n\ndbdta\n");
-           listdta();
-       } else {
-           flistdbu();
-       }
+       flistdbu();
        printf("\n\nfreelist\n");
        listfree(mkoptions.listspace);
        printf("\n\ndbb\n");

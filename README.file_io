@@ -1,7 +1,7 @@
 As of lessfs-1.2.0 file_io is the recommended data store
 for lessfs.
 
-To use the file_io backend instead of tokyocabinet to store the data
+To use the file_io backend to store the data
 change lessfs.cfg so that it includes these lines.
 
 Comment these lines out:
@@ -26,7 +26,7 @@ needs datablocks to store data it will first search in the freelist
 if there is space available. The 'deleted' space will therefore be 
 reused. The data file will never shrink though!
 
-The file_io backend has similar performance as the tokyocabinet
+The file_io backend has similar performance as the legacy tokyocabinet
 database. It will outperform the tc backend when very large files are
 stored and the amount of memory is insufficient to have enough tc buffers.
 BLOCKDATA_PATH may point to a raw device although this is not recommended (yet).

@@ -1,3 +1,11 @@
+# Lessfs example configuration - LMDB backend
+# Build with: ./configure --with-lmdb && make
+#
+# LMDB is a compact, fast, memory-mapped key-value
+# store. It replaces BerkeleyDB for metadata storage.
+# LMDB stores all named databases in a single
+# environment directory (META_PATH).
+#
 # Enable informational messages about compression.
 DEBUG = 5
 HASHNAME=MHASH_TIGER192
@@ -9,9 +17,22 @@ BLOCKDATA_PATH=/data/dta/blockdata.dta
 #BLOCKDATA_IO_TYPE=chunk_io
 #BLOCKDATA_PATH=/data/dta/
 #
+# META_PATH is the directory where LMDB stores
+# its data.mdb and lock.mdb files.
+# All metadata databases (dbp, dbb, dbu, dbs, dbl,
+# dbdirent, freelist) are stored in this single
+# LMDB environment.
 META_PATH=/data/mta
-META_BS=1048576
 #
+# LMDB map size in bytes.
+# This sets the maximum size of the LMDB database.
+# Default is 10GB (10737418240).
+# For large filesystems, increase accordingly.
+# The space is not pre-allocated; LMDB grows the
+# file on demand up to this limit.
+LMDB_MAPSIZE=10737418240
+#
+# CACHESIZE in MB
 CACHESIZE=512
 # Flush data to disk after X seconds.
 COMMIT_INTERVAL=10
@@ -23,14 +44,15 @@ MAX_THREADS=16
 #DYNAMIC_DEFRAGMENTATION on or off, default is off.
 DYNAMIC_DEFRAGMENTATION=on
 COREDUMPSIZE=2560000000
-# Consider SYNC_RELAX=1 or SYNC_RELAX=2 when exporting lessfs with NFS.
+# Consider SYNC_RELAX=1 or SYNC_RELAX=2
+# when exporting lessfs with NFS.
 SYNC_RELAX=0
-# When BACKGROUND_DELETE=on lessfs will spawn a thread to delete
-# a file as a background task. This is a recently added feature
-# and is therefore disabled by default.
+# When BACKGROUND_DELETE=on lessfs will spawn a
+# thread to delete a file as a background task.
 BACKGROUND_DELETE=on
-# Requires openssl and lessfs has to be configured with --with-crypto
-ENCRYPT_DATA=on
+# Requires openssl and lessfs has to be configured
+# with --with-crypto
+ENCRYPT_DATA=off
 # ENCRYPT_META on or off, default is off
 # Requires ENCRYPT_DATA=on and is otherwise ignored.
 ENCRYPT_META=off
@@ -39,7 +61,6 @@ ENABLE_TRANSACTIONS=on
 # Select a blocksize to fit your needs.
 BLKSIZE=131072
 COMPRESSION=qlz
-#TUNEFORSPEED=yes
 #
 ##### LFS MASTER #####
 #REPLICATION=masterslave
@@ -59,5 +80,3 @@ COMPRESSION=qlz
 #REPLICATION_LISTEN_IP=-1
 #REPLICATION_WATCHDIR=/data/master/dta
 #REPLICATION_LISTEN_PORT=201
-#BDB_PRIVATE=on
-#TUNEFORSIZE=HUGE

@@ -38,8 +38,6 @@
 #include <fuse.h>
 
 #include <tcutil.h>
-#include <tchdb.h>
-#include <tcbdb.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
@@ -53,7 +51,6 @@
 #include "lib_qlz.h"
 #endif
 #include "lib_common.h"
-#include "lib_tc.h"
 #include "commons.h"
 
 #ifdef ENABLE_CRYPTO

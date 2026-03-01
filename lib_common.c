@@ -53,8 +53,6 @@
 #include <sys/wait.h>
 #include <mhash.h>
 #include <tcutil.h>
-#include <tchdb.h>
-#include <tcbdb.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include "lib_cfg.h"
@@ -71,8 +69,9 @@
 #ifdef BERKELEYDB
 #include <db.h>
 #include "lib_bdb.h"
-#else
-#include "lib_tc.h"
+#elif defined(LMDB)
+#include <lmdb.h>
+#include "lib_lmdb.h"
 #endif
 #include "lib_net.h"
 #include "file_io.h"
@@ -90,17 +89,6 @@ extern int freplbl;             /* Backlog processing */
 extern int BLKSIZE;
 extern long working;
 
-#ifndef BERKELEYDB
-TCHDB *dbb = NULL;
-TCHDB *dbu = NULL;
-TCHDB *dbp = NULL;
-TCBDB *dbl = NULL;              // Hardlink
-TCHDB *dbs = NULL;              // Symlink
-TCHDB *dbdta = NULL;
-TCBDB *dbdirent = NULL;
-TCBDB *freelist = NULL;         // Free list for file_io
-
-#endif
 TCTREE *workqtree;              // Used to buffer incoming data (writes)
 TCTREE *readcachetree;          // Used to cache chunks of data that are likely to be read
 TCTREE *path2inotree;           // Used to cache path to inode translations
@@ -1469,14 +1457,10 @@ void formatfs()
                    config->hashlen);
     stiger = thash((unsigned char *) hashstr, strlen(hashstr));
     s_free(hashstr);
-    if ( config->blockdata_io_type == TOKYOCABINET ) {
-        update_inuse(stiger, 1);
-    } else {
         inuse.inuse = 1;
         inuse.size = 0;
         inuse.offset = 0;
         file_update_inuse(stiger, &inuse);
-    }
     lessfs_trans_stamp();
     free(stiger);
 
@@ -1492,13 +1476,9 @@ void formatfs()
     }
 #endif
     nextinode = 1;
-    if (config->blockdata_io_type !=  TOKYOCABINET ) {
         blockdatadir = s_dirname(config->blockdata);
         stat(blockdatadir, &stbuf);
         s_free(blockdatadir);
-    } else {
-        stat(config->blockdata, &stbuf);
-    }
     write_nfi(nextinode);
     fs_mkdir("/", stbuf.st_mode);
     fs_mkdir("/.lessfs", stbuf.st_mode);
@@ -2240,10 +2220,10 @@ unsigned int db_commit_block(unsigned char *dbdata,
 {
     unsigned char *stiger = NULL;
     DAT *compressed;
-    unsigned long long inuse;
     unsigned int ret = 0;
 
     FUNC;
+    unsigned long long inuse;
     LDEBUG("db_commit_block");
     stiger = thash(dbdata, dsize);
     create_hash_note(stiger);
@@ -2276,11 +2256,11 @@ void partial_truncate_block(unsigned long long inode,
     DAT *uncompdata;
     INOBNO inobno;
     DAT *data;
+    unsigned long long inuse;
 #ifdef ENABLE_CRYPTO
     DAT *encrypted;
 #endif
     unsigned char *stiger;
-    unsigned long long inuse;
 
     FUNC;
     LDEBUG("partial_truncate_block : inode %llu, blocknr %llu, offset %u",
@@ -2342,10 +2322,10 @@ void *tc_truncate_worker(void *threadarg)
     struct truncate_thread_data *trunc_data;
     unsigned char *stiger;
     DAT *data;
-    unsigned long long inuse;
     INOBNO inobno;
     unsigned int offsetblock;
 
+    unsigned long long inuse;
     trunc_data = (struct truncate_thread_data *) threadarg;
     lastblocknr = trunc_data->lastblocknr;
     blocknr = trunc_data->blocknr;
@@ -2439,7 +2419,6 @@ void *tc_truncate_worker(void *threadarg)
 struct tm *init_transactions()
 {
     INUSE *finuse;
-    unsigned long long inuse;
     time_t tdate;
     struct tm *timeinfo = NULL;
     unsigned long replogsize;
@@ -2448,32 +2427,22 @@ struct tm *init_transactions()
     if (config->transactions) {
         config->commithash =
             thash((unsigned char *) "COMMITSTAMP", strlen("COMMITSTAMP"));
-        if ( config->blockdata_io_type == TOKYOCABINET ) {
-            inuse = getInUse((unsigned char *) config->commithash);
-            if (0 == inuse) {
-                LFATAL("COMMITSTAMP not found");
-                lessfs_trans_stamp();
-                inuse = getInUse((unsigned char *) config->commithash);
-            }
-            tdate = inuse;
-        } else {
             finuse = file_get_inuse((unsigned char *) config->commithash);
-            if (NULL == finuse) {
-                LFATAL
-                    ("COMMITSTAMP not found, upgrading the filesystem to support transactions");
-                lessfs_trans_stamp();
-                finuse =
+        if (NULL == finuse) {
+        LFATAL
+        ("COMMITSTAMP not found, upgrading the filesystem to support transactions");
+        lessfs_trans_stamp();
+        finuse =
                     file_get_inuse((unsigned char *) config->commithash);
-            }
-            replogsize=finuse->size;
-            if ( -1 == fstat(frepl, &stbuf)) die_syserr();
-            if ( replogsize < stbuf.st_size ) {
-               if ( -1 == ftruncate(frepl,replogsize) ) die_syserr();
-            }
-            tdate = finuse->inuse;
-            if (finuse)
-                s_free(finuse);
         }
+        replogsize=finuse->size;
+        if ( -1 == fstat(frepl, &stbuf)) die_syserr();
+        if ( replogsize < stbuf.st_size ) {
+        if ( -1 == ftruncate(frepl,replogsize) ) die_syserr();
+        }
+        tdate = finuse->inuse;
+        if (finuse)
+        s_free(finuse);
         timeinfo = localtime(&tdate);
     }
     return timeinfo;
@@ -2553,8 +2522,8 @@ void db_close(bool defrag)
 {
 #ifdef BERKELEYDB
     bdb_close();
-#else
-    tc_close(defrag);
+#elif defined(LMDB)
+    bdb_close();
 #endif
 }
 
@@ -2632,11 +2601,7 @@ void cook_cache(char *key, int ksize, CCACHEDTA * ccachedta, unsigned long seque
         }
     }
     
-    if ( config->blockdata_io_type == TOKYOCABINET ) {
-        tc_write_cache(ccachedta, inobno);
-    } else {
         fl_write_cache(ccachedta, inobno);
-    }
     return;
 }
 
@@ -2793,18 +2758,12 @@ void lessfs_trans_stamp()
     LDEBUG("lessfs_trans_stamp : filesystem commit at %s",
            asctime(timeinfo));
     if ( -1 == fstat(frepl, &stbuf)) die_syserr();
-    if ( config->blockdata_io_type != TOKYOCABINET ) {
         finuse.inuse = ldate;
         finuse.size = stbuf.st_size;
         finuse.offset = 0;
         finuse.allocated_size = 0;
         bin_write_dbdata(DBU, config->commithash, config->hashlen,
                          (unsigned char *) &finuse, sizeof(INUSE));
-    } else {
-        bin_write_dbdata(DBU, config->commithash, config->hashlen,
-                         (unsigned char *) &ldate,
-                         sizeof(unsigned long long));
-    }
     return;
 }
 
@@ -2873,9 +2832,9 @@ void write_trunc_todolist(struct truncate_thread_data *trunc_data)
 
 void tc_write_cache(CCACHEDTA * ccachedta, INOBNO * inobno)
 {
-    unsigned long long inuse;
     DAT *compressed;
 
+    unsigned long long inuse;
     create_hash_note((unsigned char *) &ccachedta->hash);
     db_delete_stored(inobno);
     inuse = getInUse((unsigned char *) &ccachedta->hash);
@@ -2909,10 +2868,10 @@ void tc_write_cache(CCACHEDTA * ccachedta, INOBNO * inobno)
 
 void db_delete_stored(INOBNO * inobno)
 {
-    unsigned long long inuse;
     unsigned char *hash;
     DAT *data;
 
+    unsigned long long inuse;
     data = search_dbdata(DBB, inobno, sizeof(INOBNO), LOCK);
     if (NULL == data)
         return;
@@ -3148,11 +3107,7 @@ int fs_rename_link(const char *from, const char *to, struct stat stbuf)
     if (0 == strcmp(from, to))
         return (0);
     if (-ENOENT != dbstat(to, &st, 0)) {
-        if ( config->blockdata_io_type == TOKYOCABINET ) {
-            db_unlink_file(to);
-        } else {
             file_unlink_file(to);
-        }
     }
     fromdir = s_dirname((char *) from);
     todir = s_dirname((char *) to);
@@ -3237,11 +3192,7 @@ int fs_rename(const char *from, const char *to, struct stat stbuf)
         } else {
             LDEBUG("fs_rename : destination file %s exists, unlink_file.",
                    to);
-            if ( config->blockdata_io_type == TOKYOCABINET ) {
-                db_unlink_file(to);
-            } else {
                 file_unlink_file(to);
-            }
         }
     }
     s_free(bfrom);
@@ -3407,9 +3358,8 @@ void parseconfig(int mklessfs, bool force_optimize)
     config->tuneforspeed = 0;
     config->replication_watchdir = NULL;
     config->replication_last_rotated = time(NULL);
-// BLOCKDATA_IO_TYPE tokyocabinet (default), file_io
     config->blockdata = read_val("BLOCKDATA_PATH");
-    config->blockdata_io_type = TOKYOCABINET;
+    config->blockdata_io_type = FILE_IO;
     iv = getenv("BLOCKDATA_IO_TYPE");
     if (NULL == iv) {
         config->blockdata_io_type = FILE_IO;
@@ -3417,7 +3367,6 @@ void parseconfig(int mklessfs, bool force_optimize)
     } else {
         if (0 == strncasecmp(iv, "file_io", strlen("file_io"))) {
             config->blockdata_io_type = FILE_IO;
-            config->blockdatabs = NULL;
 #ifdef BERKELEYDB
             iv = getenv("TUNEFORSPEED");
             if (iv) {
@@ -3428,12 +3377,13 @@ void parseconfig(int mklessfs, bool force_optimize)
                         ("Read the Berkeleydb documentation about DB_TXN_WRITE_NOSYNC");
                 }
             }
+#elif defined(LMDB)
+            /* LMDB uses MDB_NOSYNC set in bdb_open */
 #endif
             LINFO("The selected data store is file_io.");
         } else {
             if (0 == strncasecmp(iv, "chunk_io", strlen("chunk_io"))) {
                config->blockdata_io_type = CHUNK_IO;
-               config->blockdatabs = NULL;
                LINFO("The selected data store is chunk_io.");
 
     /* Configuration for DIRECT_CHUNK_IO */
@@ -3454,22 +3404,11 @@ void parseconfig(int mklessfs, bool force_optimize)
             LINFO("DIRECT_CHUNK_IO not specified - using buffered I/O (default).");
         }
     }
-            } else {
-               if ( 0 != mklessfs ) fprintf(stderr,"Using tokyocabinet as datastore is deprecated!\n");
-               LINFO("The selected data store is tokyocabinet.");
-               config->blockdatabs = read_val("BLOCKDATA_BS");
-            }
         }
     }
-    if ( 0 != mklessfs ) { 
-       fprintf(stderr,"Using tokyocabinet is DEPRECATED and no longer recommended. Please consider using Berkeley DB.\n");
     }
 #ifdef BERKELEYDB
-    if (config->blockdata_io_type == TOKYOCABINET) {
-        if ( 0 != mklessfs ) fprintf(stderr,"Configuration error : berkeleydb only supports file_io or chunk_io\n");
-        die_dataerr
-            ("Configuration error : berkeleydb only supports file_io or chunk_io");
-    }
+#elif defined(LMDB)
 #endif
     iv = getenv("MAX_BACKLOG_SIZE");
     if (iv) {
@@ -3492,21 +3431,17 @@ void parseconfig(int mklessfs, bool force_optimize)
     }
 #ifdef BERKELEYDB
     config->meta = read_val("META_PATH");
-#else
-    config->freelist = read_val("FREELIST_PATH");
-    config->freelistbs = read_val("FREELIST_BS");
-    config->blockusage = read_val("BLOCKUSAGE_PATH");
-    config->blockusagebs = read_val("BLOCKUSAGE_BS");
-    config->dirent = read_val("DIRENT_PATH");
-    config->direntbs = read_val("DIRENT_BS");
-    config->fileblock = read_val("FILEBLOCK_PATH");
-    config->fileblockbs = read_val("FILEBLOCK_BS");
+#elif defined(LMDB)
     config->meta = read_val("META_PATH");
-    config->metabs = read_val("META_BS");
-    config->hardlink = read_val("HARDLINK_PATH");
-    config->hardlinkbs = read_val("HARDLINK_BS");
-    config->symlink = read_val("SYMLINK_PATH");
-    config->symlinkbs = read_val("SYMLINK_BS");
+#endif
+#ifdef LMDB
+    config->lmdb_mapsize = LMDB_DEFAULT_MAPSIZE;
+    iv = getenv("LMDB_MAPSIZE");
+    if (iv) {
+        sscanf(iv, "%llu", &config->lmdb_mapsize);
+        LINFO("LMDB map size set to %llu bytes",
+              config->lmdb_mapsize);
+    }
 #endif
     LINFO("config->blockdata = %s", config->blockdata);
 
@@ -3711,8 +3646,8 @@ void parseconfig(int mklessfs, bool force_optimize)
     LINFO("cache %llu data blocks", config->cachesize);
     if (mklessfs == 1) {
         dbpath =
-            as_sprintf(__FILE__, __LINE__, "%s/fileblock.tch",
-                       config->fileblock);
+            as_sprintf(__FILE__, __LINE__, "%s/blockdata.dta",
+                       config->blockdata);
         if (-1 != stat(dbpath, &stbuf)) {
             fprintf(stderr,
                     "Data %s already exists, please remove it and try again\n",
@@ -3729,16 +3664,14 @@ void parseconfig(int mklessfs, bool force_optimize)
         drop_databases();
 #ifdef BERKELEYDB
         bdb_open();
-#else
-        if (NULL == dbp)
-            tc_open(0, 1, force_optimize);
+#elif defined(LMDB)
+        bdb_open();
 #endif
     } else {
 #ifdef BERKELEYDB
         bdb_open();
-#else
-        if (NULL == dbp)
-            tc_open(0, 0, force_optimize);
+#elif defined(LMDB)
+        bdb_open();
 #endif
     }
 
@@ -3813,26 +3746,15 @@ int get_blocksize()
     char *brand;
     INUSE *finuse;
     int blksize = 4096;
-    unsigned long long inuse;
 
     brand = as_sprintf(__FILE__, __LINE__, "LESSFS_BLOCKSIZE");
     stiger = thash((unsigned char *) brand, strlen(brand));
-    if (config->blockdatabs) {
-        inuse = getInUse(stiger);
-        if (0 == inuse) {
-            brand_blocksize();
-            blksize = BLKSIZE;
-        } else {
-            blksize = inuse;
-        }
+    finuse = file_get_inuse(stiger);
+    if (NULL == finuse) {
+        brand_blocksize();
+        blksize = BLKSIZE;
     } else {
-        finuse = file_get_inuse(stiger);
-        if (NULL == finuse) {
-            brand_blocksize();
-            blksize = BLKSIZE;
-        } else {
-            blksize = finuse->inuse;
-        }
+        blksize = finuse->inuse;
     }
     free(stiger);
     s_free(brand);
@@ -3851,14 +3773,10 @@ void brand_blocksize()
 
     brand = as_sprintf(__FILE__, __LINE__, "LESSFS_BLOCKSIZE");
     stiger = thash((unsigned char *) brand, strlen(brand));
-    if (config->blockdatabs) {
-        update_inuse(stiger, BLKSIZE);
-    } else {
-        inuse.inuse = BLKSIZE;
-        inuse.size = 0;
-        inuse.offset = 0;
-        file_update_inuse(stiger, &inuse);
-    }
+    inuse.inuse = BLKSIZE;
+    inuse.size = 0;
+    inuse.offset = 0;
+    file_update_inuse(stiger, &inuse);
     free(stiger);
     s_free(brand);
     return;

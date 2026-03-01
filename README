@@ -1,17 +1,11 @@
-lessfs requires tokyocabinet to be installed on the system.
+lessfs requires tokyocabinet's tcutil library (TCTREE)
+to be installed on the system for in-memory caching.
 http://tokyocabinet.sourceforge.net/index.html
 
-On 32bit systems don't forget to configure tokyocabinet with:
-./configure --enable-off64 
-Failure to do so will limit the databases to a 2GB filesize.
+lessfs uses BerkeleyDB as its database backend.
+LMDB support is planned as a future replacement.
 
-##### WARNING #######
-
-Although tokyocabinet is still required to build lessfs, 
-using the database is no longer recommended.
-Please consider compiling Lessfs with either 
-(stable) --with-berkeleydb
-
-Tokyocabinet can and will corrupt beyond repair when 
-the system goes down unexpectedly in case of a power outage 
-or crash!
+To build from source:
+./configure --with-berkeleydb
+make
+make install

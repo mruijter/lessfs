@@ -656,6 +656,7 @@ DEPS_LIBS
 PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
+LMDB_LIBS
 BERKELEYDB_LIBS
 SNAPPY_LIBS
 LZO_LIBS
@@ -770,6 +771,7 @@ with_crypto
 with_lzo
 with_snappy
 with_berkeleydb
+with_lmdb
 enable_debug
 enable_memtrace
 enable_lckdebug
@@ -1434,6 +1436,7 @@ Optional Packages:
   --with-lzo              Enable the use of LZO compression.
   --with-snappy           Enable the use of googles snappy compression.
   --with-berkeleydb       Use berkeleydb instead of tokyocabinet.
+  --with-lmdb             Use LMDB instead of berkeleydb.
 
 Some influential environment variables:
   CC          C compiler command
@@ -6678,6 +6681,79 @@ fi
 fi
 
 
+LMDB_MSG="no"
+
+# Check whether --with-lmdb was given.
+if test ${with_lmdb+y}
+then :
+  withval=$with_lmdb;
+                if test "x$withval" != "xno" ; then
+                        if test "x$BERKELEYDB_MSG" = "xyes" ; then
+                                as_fn_error $? "--with-lmdb and --with-berkeleydb are mutually exclusive" "$LINENO" 5
+                        fi
+
+printf "%s\n" "#define LMDB 1" >>confdefs.h
+
+                        LMDB_LIBS="$LIBS -llmdb"
+                        EXTRAFILES=lib_lmdb.c
+                        ac_fn_c_check_header_compile "$LINENO" "lmdb.h" "ac_cv_header_lmdb_h" "
+
+"
+if test "x$ac_cv_header_lmdb_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_LMDB_H 1" >>confdefs.h
+
+fi
+
+                        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for mdb_env_create  in -llmdb" >&5
+printf %s "checking for mdb_env_create  in -llmdb... " >&6; }
+if test ${ac_cv_lib_lmdb_mdb_env_create_+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-llmdb  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char mdb_env_create  ();
+int
+main (void)
+{
+return mdb_env_create  ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_lmdb_mdb_env_create_=yes
+else $as_nop
+  ac_cv_lib_lmdb_mdb_env_create_=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_lmdb_mdb_env_create_" >&5
+printf "%s\n" "$ac_cv_lib_lmdb_mdb_env_create_" >&6; }
+if test "x$ac_cv_lib_lmdb_mdb_env_create_" = xyes
+then :
+  LMDB_LIBS="-llmdb"
+else $as_nop
+  as_fn_error $? "\"LMDB is not found\"" "$LINENO" 5
+fi
+
+                        LMDB_MSG="yes"
+                fi
+
+
+fi
+
+
 DEBUG_MSG="no"
 # Check whether --enable-debug was given.
 if test ${enable_debug+y}
@@ -6740,6 +6816,7 @@ printf "%s\n" "#define FILELOG 1" >>confdefs.h
 
 
 fi
+
 
 
 

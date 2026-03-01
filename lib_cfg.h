@@ -23,22 +23,8 @@
 
 struct configdata {
     char *blockdata;
-    char *blockdatabs;
     int blockdata_io_type;
-    char *blockusage;
-    char *blockusagebs;
-    char *dirent;
-    char *direntbs;
-    char *fileblock;
-    char *fileblockbs;
     char *meta;
-    char *metabs;
-    char *hardlink;
-    char *hardlinkbs;
-    char *symlink;
-    char *symlinkbs;
-    char *freelist;
-    char *freelistbs;
     char *nexthash;
     char *replication_logfile;
     char *replication_watchdir;
@@ -78,6 +64,7 @@ struct configdata {
     int frozen;
     int safe_down;
     int tuneforspeed;
+    unsigned long long lmdb_mapsize;
     int nospace;
     int chunk_depth;
     int reclaim;

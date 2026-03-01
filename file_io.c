@@ -43,8 +43,6 @@
 #include <libgen.h>
 
 #include <tcutil.h>
-#include <tcbdb.h>
-#include <tchdb.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -58,11 +56,17 @@
 #include "lib_qlz.h"
 #include "lib_qlz15.h"
 #include "lib_common.h"
-#include "lib_tc.h"
 #include "lib_crypto.h"
 #include "file_io.h"
 #include "lib_repl.h"
 #include "lib_net.h"
+#ifdef BERKELEYDB
+#include <db.h>
+#include "lib_bdb.h"
+#elif defined(LMDB)
+#include <lmdb.h>
+#include "lib_lmdb.h"
+#endif
 
 extern char *logname;
 extern char *function;
@@ -71,14 +75,6 @@ extern int BLKSIZE;
 extern int max_threads;
 extern char *passwd;
 
-extern TCHDB *dbb;
-extern TCHDB *dbu;
-extern TCHDB *dbp;
-extern TCBDB *dbl;
-extern TCHDB *dbs;
-extern TCHDB *dbdta;
-extern TCBDB *dbdirent;
-extern TCBDB *freelist;
 extern TCTREE *workqtree;
 extern TCTREE *readcachetree;
 extern int fdbdta;

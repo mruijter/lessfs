@@ -24,8 +24,6 @@
 
 
 #include <tcutil.h>
-#include <tcbdb.h>
-#include <tchdb.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -52,19 +50,12 @@
 #ifdef BERKELEYDB
 #include <db.h>
 #include "lib_bdb.h"
-#else
-#include "lib_tc.h"
+#elif defined(LMDB)
+#include <lmdb.h>
+#include "lib_lmdb.h"
 #endif
 
 
-extern TCHDB *dbb;
-extern TCHDB *dbu;
-extern TCHDB *dbp;
-extern TCBDB *dbl;
-extern TCHDB *dbs;
-extern TCHDB *dbdta;
-extern TCBDB *dbdirent;
-extern TCBDB *freelist;
 extern TCTREE *workqtree;
 extern TCTREE *readcachetree;
 extern TCTREE *path2inotree;

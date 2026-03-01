@@ -42,7 +42,7 @@ check_prerequisites()
 test_backends()
 {
 # GENERAL TEST
-   BACKENDS="--with-tokyocabinet --with-berkeleydb"
+   BACKENDS="--with-berkeleydb"
    for b in $BACKENDS
    do
       ./configure $b $CUROPT

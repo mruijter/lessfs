@@ -219,11 +219,9 @@ void bdb_close()
         }
     }
     close_trees();
-    if (NULL == config->blockdatabs) {
-        fsync(fdbdta);
-        close(fdbdta);
-        free(config->nexthash);
-    }
+    fsync(fdbdta);
+    close(fdbdta);
+    free(config->nexthash);
     flock(frepl, LOCK_UN);
     fsync(frepl);
     close(frepl);
@@ -750,14 +748,12 @@ void start_flush_commit()
     FUNC;
     if (config->transactions)
         lessfs_trans_stamp();
-    if (NULL == config->blockdatabs) {
-        if (lastoffset != nextoffset) {
-            LDEBUG("write nextoffset=%llu", nextoffset);
-            bin_write_dbdata(DBU, config->nexthash, config->hashlen,
-                             (unsigned char *) &nextoffset,
-                             sizeof(unsigned long long));
-            lastoffset = nextoffset;
-        }
+    if (lastoffset != nextoffset) {
+        LDEBUG("write nextoffset=%llu", nextoffset);
+        bin_write_dbdata(DBU, config->nexthash, config->hashlen,
+                         (unsigned char *) &nextoffset,
+                         sizeof(unsigned long long));
+        lastoffset = nextoffset;
     }
     sync_all_filesizes();
     if ( config->blockdata_io_type == FILE_IO ) {
@@ -1583,17 +1579,10 @@ void bdb_restart_truncation()
         }
         LINFO("Resume truncation of inode %llu", trunc_data->inode);
         create_inode_note(trunc_data->inode);
-        if (config->blockdatabs) {
-            if (0 !=
-                pthread_create(&truncate_thread, NULL, tc_truncate_worker,
-                               (void *) trunc_data))
-                die_syserr();
-        } else {
-            if (0 !=
-                pthread_create(&truncate_thread, NULL,
-                               file_truncate_worker, (void *) trunc_data))
-                die_syserr();
-        }
+        if (0 !=
+            pthread_create(&truncate_thread, NULL,
+                           file_truncate_worker, (void *) trunc_data))
+            die_syserr();
         if (0 != pthread_detach(truncate_thread))
             die_syserr();
     } while (0 ==

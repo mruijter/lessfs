@@ -33,11 +33,9 @@ lessfs /etc/lessfs.cfg /your/mountpoint
 
 ---
 
-Lessfs now supports BerkeleyDB next to tokyocabinet
-. The decision to add BerkeleyDB was 
-taken because tokyocabinet failed
-to provide the reliability that is needed for the
-enterprise.
+Lessfs uses BerkeleyDB as its database backend.
+BerkeleyDB was chosen because it provides the
+reliability that is needed for the enterprise.
 
 Although BerkeleyDB is not the fastest of the three
 backends when used with a 128k blocksize the performance

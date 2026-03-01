@@ -123,6 +123,26 @@ AC_ARG_WITH(berkeleydb,
         ]
 )
 
+LMDB_MSG="no"
+AC_ARG_WITH(lmdb,
+        [  --with-lmdb             Use LMDB instead of berkeleydb.],
+        [
+                if test "x$withval" != "xno" ; then
+                        if test "x$BERKELEYDB_MSG" = "xyes" ; then
+                                AC_MSG_ERROR([--with-lmdb and --with-berkeleydb are mutually exclusive])
+                        fi
+                        AC_DEFINE(LMDB, 1,
+                                [Define if you want to use LMDB])
+                        LMDB_LIBS="$LIBS -llmdb"
+                        EXTRAFILES=lib_lmdb.c
+                        AC_CHECK_HEADERS(lmdb.h, [], [], [
+                        ])
+                        AC_CHECK_LIB(lmdb, mdb_env_create , [LMDB_LIBS="-llmdb"], [AC_MSG_ERROR("LMDB is not found")])
+                        LMDB_MSG="yes"
+                fi
+        ]
+)
+
 DEBUG_MSG="no"
 AC_ARG_ENABLE(debug,
         [  --enable-debug          Enable debug messages],
@@ -176,6 +196,7 @@ AC_SUBST(CRYPTO_LIBS)
 AC_SUBST(LZO_LIBS)
 AC_SUBST(SNAPPY_LIBS)
 AC_SUBST(BERKELEYDB_LIBS)
+AC_SUBST(LMDB_LIBS)
 PKG_CHECK_MODULES(DEPS, tokyocabinet >= 1.4.21 fuse >= 2.8.0 ${MYDEPS})
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

@@ -70,7 +70,7 @@ lessfs /etc/lessfs.cfg /fuse -o negative_timeout=0,\\
 .fi
 .SS LESSFS CONFIGURATION FILE.
 lessfs requires a configuration file that contains information about the
-tokyocabinet databases that actually hold the filesystem data. You may choose
+databases that actually hold the filesystem data. You may choose
 not to include some of the variables in the configuration file. In this case you
 should export the variables into the environment.
 Example: export BLOCKDATA_PATH=/data/dta
@@ -79,23 +79,21 @@ The configuration file should otherwise contain the following variables:
 .IP BLOCKDATA_IO_TYPE
 .nf
 The way that lessfs stores the actual data. 
-Valid options are \fBfile_io\fR or \fBtokyocabinet\fR
-Example: BLOCKDATA_IO_TYPE=file_io , tokyocabinet or chunk_io
-tokyocabinet is now deprecated. file_io is preferred although chunk_io has the advantage of 
+Valid options are \fBfile_io\fR or \fBchunk_io\fR
+Example: BLOCKDATA_IO_TYPE=file_io or chunk_io
+file_io is preferred although chunk_io has the advantage of 
 actually freeing up space when data is deleted from the filesystem. 
 chunk_io works well with btrfs.
 .fi
 .IP "BLOCKDATA_PATH"
 .nf
 The path to a directory that holds the blockdata database or file.
-Example with tokyocabinet : BLOCKDATA_PATH=/data/dta
+Example: BLOCKDATA_PATH=/data/dta
 Example with file_io : BLOCKDATA_PATH=/data/dta/mydtafile
 .fi
 .IP "BLOCKDATA_BS"
 .nf
 The bucketsize of the blockdata database. 
-See the tokyocabinet documentation for details.
-http://tokyocabinet.sourceforge.net/spex-en.html
 Example: BLOCKDATA_BS=10485760
 .fi
 .IP "BLOCKUSAGE_PATH"
@@ -155,17 +153,17 @@ Do not set MAX_THREADS higher then the number of CPU cores available in the syst
 .IP COMMIT_INTERVAL=30
 Maximum age of entries that are kept in the cache. After this the cache will be written to disk.
 .IP DYNAMIC_DEFRAGMENTATION=on
-Enable tokyocabinets automatic defragmentation feature. Default = off when not specified.
+Automatic defragmentation feature (deprecated). Default = off when not specified.
 .IP COREDUMPSIZE=25600000
 Enable generation of coredumps for debugging. Default = off. Only usefull when lessfs is compiled with CFLAGS=-ggdb2
 .IP SYNC_RELAX=0 
 Valid options are : 0 (default) , 1 or 2
 .br
-\fB0\fR Flush all caches in lessfs for an inode and sync the tokyocabinet databases to disk when fsync is called for an inode.
+\fB0\fR Flush all caches in lessfs for an inode and sync the databases to disk when fsync is called for an inode.
 .br 
-\fB1\fR Do not sync the tokyocabinet databases to the disk when fsync is called on an inode. The inode data will be written directly to the databases. In case of a crash the databases themselves might not be committed to disk. This feature improves some types of I/O and is especially useful with NFS. There is a trade-off between more speed and the chance of possible loss of data. \fBUse with caution.\fR
+\fB1\fR Do not sync the databases to the disk when fsync is called on an inode. The inode data will be written directly to the databases. In case of a crash the databases themselves might not be committed to disk. This feature improves some types of I/O and is especially useful with NFS. There is a trade-off between more speed and the chance of possible loss of data. \fBUse with caution.\fR
 .br
-\fB2\fR Living on the edge. Do not flush the caches in lessfs and do not sync the tokyocabinet databases to disk. \fBUse with extreme caution.\fR
+\fB2\fR Living on the edge. Do not flush the caches in lessfs and do not sync the databases to disk. \fBUse with extreme caution.\fR
 .IP ENCRYPT_DATA=off
 .br
 Enable data encryption. Requires lessfs to be configured with --with-crypto

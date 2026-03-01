@@ -30,7 +30,7 @@ typedef unsigned long word32;
 typedef unsigned char byte;
 void tiger(byte *, word64, word64 *);
 
-enum IOTYPE {TOKYOCABINET,FILE_IO,MULTIFILE_IO,CHUNK_IO};
+enum IOTYPE {FILE_IO,MULTIFILE_IO,CHUNK_IO};
 
 typedef struct {
     unsigned long long offset;

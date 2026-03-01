@@ -57,8 +57,6 @@
 #include <sys/wait.h>
 #include <mhash.h>
 #include <tcutil.h>
-#include <tchdb.h>
-#include <tcbdb.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include "lib_safe.h"
@@ -71,8 +69,9 @@
 #ifdef BERKELEYDB
 #include <db.h>
 #include "lib_bdb.h"
-#else
-#include "lib_tc.h"
+#elif defined(LMDB)
+#include <lmdb.h>
+#include "lib_lmdb.h"
 #endif
 #include "lib_net.h"
 #include "file_io.h"
@@ -90,6 +89,8 @@
 
 #include "commons.h"
 #ifdef BERKELEYDB
+extern char *bdb_lockedby;
+#elif defined(LMDB)
 extern char *bdb_lockedby;
 #endif
 
@@ -152,12 +153,6 @@ int check_path_sanity(const char *path)
 
 void dbsync()
 {
-#ifndef BERKELEYDB
-    tcbdbsync(dbdirent);
-    tchdbsync(dbu);
-    tchdbsync(dbb);
-    tchdbsync(dbp);
-#endif
     if ( config->blockdata_io_type == FILE_IO ) {
         fsync(fdbdta);
     }
@@ -335,11 +330,7 @@ static int lessfs_unlink(const char *path)
     tctreeout(metatree, &stbuf->st_ino, sizeof(unsigned long long));
     release_meta_lock();
 
-    if (config->blockdatabs) {
-        res = db_unlink_file(path);
-    } else {
-        res = file_unlink_file(path);
-    }
+    res = file_unlink_file(path);
     if (config->relax == 0)
         dbsync();
     invalidate_p2i((char *) path);
@@ -566,11 +557,7 @@ static int lessfs_truncate(const char *path, off_t size)
     flush_wait(stbuf->st_ino);
     purge_read_cache(stbuf->st_ino, 1, (char *) __PRETTY_FUNCTION__);
     if (size < stbuf->st_size) {
-        if (config->blockdatabs) {
-            res = db_fs_truncate(stbuf, size, bname, 0);
-        } else {
-            res = file_fs_truncate(stbuf, size, bname, 0);
-        }
+        res = file_fs_truncate(stbuf, size, bname, 0);
     } else {
         LDEBUG("lessfs_truncate : %s only change size to %llu", path,
                size);
@@ -799,15 +786,9 @@ static int lessfs_read(const char *path, char *buf, size_t size,
     while (done < size) {
         blocknr = (offset + done) / BLKSIZE;
         block_offset = (done + offset) - (blocknr * BLKSIZE);
-        if (config->blockdatabs) {
-            got =
-                readBlock(blocknr, buf + done, size - done, block_offset,
-                          fi->fh);
-        } else {
-            got =
-                file_read_block(blocknr, buf + done, size - done,
-                                block_offset, fi->fh);
-        }
+        got =
+            file_read_block(blocknr, buf + done, size - done,
+                            block_offset, fi->fh);
         done = done + BLKSIZE - block_offset;
         if (done > size)
             done = size;
@@ -886,14 +867,8 @@ void add2cache(INOBNO * inobno, const char *buf, off_t offsetblock,
         data = check_block_exists(inobno);
         if (data) {
             create_hash_note(data->data);
-            if (NULL == config->blockdatabs) {
-                ccachedta =
-                    file_update_stored(data->data, inobno, offsetblock);
-            } else {
-                ccachedta =
-                    update_stored((unsigned char *) data->data, inobno,
-                                  offsetblock);
-            }
+            ccachedta =
+                file_update_stored(data->data, inobno, offsetblock);
             delete_hash_note(data->data);
             if (ccachedta) {
                 memcpy(&ccachedta->data[offsetblock], buf, bsize);
@@ -1017,13 +992,9 @@ static int lessfs_statfs(const char *path, struct statvfs *stbuf)
     int res;
     char *blockdatadir;
 
-    if (config->blockdatabs) {
-        res = statvfs(config->blockdata, stbuf);
-    } else {
-        blockdatadir = s_dirname(config->blockdata);
-        res = statvfs(blockdatadir, stbuf);
-        s_free(blockdatadir);
-    }
+    blockdatadir = s_dirname(config->blockdata);
+    res = statvfs(blockdatadir, stbuf);
+    s_free(blockdatadir);
     if (res == -1)
         return -errno;
     return 0;
@@ -1307,45 +1278,18 @@ void *housekeeping_worker(void *arg)
                 }
                 count = 7;
                 break;
-#else
+#elif defined(LMDB)
             case 0:
                 dbpath =
-                    as_sprintf(__FILE__, __LINE__, "%s/fileblock.tch",
-                               config->fileblock);
+                    as_sprintf(__FILE__, __LINE__, "%s",
+                               config->meta);
+                count = 7;
                 break;
             case 1:
-                dbpath =
-                    as_sprintf(__FILE__, __LINE__, "%s/blockusage.tch",
-                               config->blockusage);
-                break;
-            case 2:
-                dbpath =
-                    as_sprintf(__FILE__, __LINE__, "%s/metadata.tcb",
-                               config->meta);
-                break;
-            case 3:
-                if (config->blockdatabs) {
-                    dbpath =
-                        as_sprintf(__FILE__, __LINE__, "%s/blockdata.tch",
-                                   config->blockdata);
-                } else {
+                if ( config->blockdata_io_type == FILE_IO ) {
                     dbpath = s_strdup(config->blockdata);
                 }
-                break;
-            case 4:
-                dbpath =
-                    as_sprintf(__FILE__, __LINE__, "%s/symlink.tch",
-                               config->symlink);
-                break;
-            case 5:
-                dbpath =
-                    as_sprintf(__FILE__, __LINE__, "%s/dirent.tcb",
-                               config->dirent);
-                break;
-            case 6:
-                dbpath =
-                    as_sprintf(__FILE__, __LINE__, "%s/hardlink.tcb",
-                               config->hardlink);
+                count = 7;
                 break;
 #endif
             default:
@@ -1421,6 +1365,19 @@ void show_lock_status(int csocket)
                      strlen("write_lock : 0 (not set)\n"));
     }
 #ifdef BERKELEYDB
+    if (0 != try_bdb_lock()) {
+        msg =
+            as_sprintf(__FILE__, __LINE__, "bdb_lock : 1 (set) by %s\n",
+                       bdb_lockedby);
+        timeoutWrite(3, csocket, msg, strlen(msg));
+        s_free(msg);
+    } else {
+        release_bdb_lock();
+        timeoutWrite(3, csocket,
+                     "bdb_lock : 0 (not set)\n",
+                     strlen("bdb_lock : 0 (not set)\n"));
+    }
+#elif defined(LMDB)
     if (0 != try_bdb_lock()) {
         msg =
             as_sprintf(__FILE__, __LINE__, "bdb_lock : 1 (set) by %s\n",
@@ -1549,6 +1506,12 @@ void *ioctl_worker(void *arg)
                result = "Please look at the lessfs bdb error log.";
                err=0;
             }
+#elif defined(LMDB)
+            if (0 == strncmp(buf, "bdb_status\r", strlen("bdb_status\r"))) {
+               bdb_stat();
+               result = "Please look at the lessfs bdb error log.";
+               err=0;
+            }
 #endif
             if (0 == strncmp(buf, "defrost\r", strlen("defrost\r"))) {
                 if (1 == isfrozen) {
@@ -1562,32 +1525,14 @@ void *ioctl_worker(void *arg)
                     err = 1;
                 }
             }
-#ifndef BERKELEYDB
-            if (0 == strncmp(buf, "defrag\r", strlen("defrag\r"))) {
-                result = "Resuming i/o after defragmentation.";
-                err = 1;
-                if (-1 ==
-                    timeoutWrite(3, csocket,
-                                 "Suspending i/o for defragmentation\n",
-                                 strlen
-                                 ("Suspending i/o for defragmentation\n")))
-                    break;
-                err = 0;
-                get_global_lock((char *) __PRETTY_FUNCTION__);
-                tc_defrag();
-                db_close(1);
-                tc_open(1, 0, 0);
-                release_global_lock();
-            }
-#endif
             if (0 == strncmp(buf, "help\r", strlen("help\r"))
                 || 0 == strncmp(buf, "h\r", strlen("h\r"))) {
 #ifdef BERKELEYDB
                 result =
                     "valid commands: bdb_status defrag defrost freeze help lockstatus quit|exit";
-#else
+#elif defined(LMDB)
                 result =
-                    "valid commands: defrag defrost freeze help lockstatus quit|exit";
+                    "valid commands: bdb_status defrag defrost freeze help lockstatus quit|exit";
 #endif
                 err = 0;
             }
@@ -1715,19 +1660,12 @@ void mark_dirty()
     stiger = thash((unsigned char *) brand, strlen(brand));
     thetime = time(NULL);
     inuse = thetime;
-    if ( config->blockdata_io_type == TOKYOCABINET ) {
-        update_inuse(stiger, inuse);
-    } else {
         finuse.inuse = BLKSIZE;
         finuse.size = inuse;
         finuse.offset = 0;
         file_update_inuse(stiger, &finuse);
-    }
     s_free(brand);
     free(stiger);
-#ifndef BERKELEYDB
-    tchdbsync(dbu);
-#endif
     EFUNC;
     return;
 }
@@ -1742,16 +1680,10 @@ int check_dirty()
     int dirty = 0;
     brand = as_sprintf(__FILE__, __LINE__, "LESSFS_DIRTY");
     stiger = thash((unsigned char *) brand, strlen(brand));
-    if (NULL == config->blockdatabs) {
-        finuse = file_get_inuse(stiger);
-        if (finuse) {
-            s_free(finuse);
-            dirty = 1;
-        }
-    } else {
-        inuse = getInUse(stiger);
-        if (0 != inuse)
-            dirty = 1;
+    finuse = file_get_inuse(stiger);
+    if (finuse) {
+        s_free(finuse);
+        dirty = 1;
     }
     free(stiger);
     s_free(brand);
@@ -1904,17 +1836,11 @@ static void *lessfs_init()
         as_sprintf(__FILE__, __LINE__, "%s%i", config->hash,
                    config->hashlen);
     stiger = thash((unsigned char *) hashstr, strlen(hashstr));
-    if (NULL == config->blockdatabs) {
-        if (NULL == (finuse = file_get_inuse(stiger))) {
-            die_dataerr
-                ("Invalid hashsize or hash found, do not change hash or hashsize after formatting lessfs.");
-        } else
-            s_free(finuse);
-    } else {
-        if (0 == getInUse(stiger))
-            die_dataerr
-                ("Invalid hashsize or hash found, do not change hash or hashsize after formatting lessfs.");
-    }
+    if (NULL == (finuse = file_get_inuse(stiger))) {
+        die_dataerr
+            ("Invalid hashsize or hash found, do not change hash or hashsize after formatting lessfs.");
+    } else
+        s_free(finuse);
     s_free(hashstr);
     free(stiger);
 
@@ -1940,8 +1866,8 @@ static void *lessfs_init()
     if (config->replication != 1 || config->replication_role != 1) {
 #ifdef BERKELEYDB
        bdb_restart_truncation();
-#else
-       tc_restart_truncation();
+#elif defined(LMDB)
+       bdb_restart_truncation();
 #endif
     }
     EFUNC;

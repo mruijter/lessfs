@@ -8,14 +8,6 @@ int debug = 5;
 int BLKSIZE = 4096;
 int max_threads = MAX_THREADS;
 
-extern TCHDB *dbp;
-extern TCHDB *dbu;
-extern TCHDB *dbb;
-extern TCHDB *dbdta;
-extern TCHDB *dbs;
-extern TCBDB *dbdirent;
-extern TCBDB *freelist;
-extern TCBDB *dbl;
 
 extern TCTREE *workqtree;
 extern TCTREE *readcachetree;

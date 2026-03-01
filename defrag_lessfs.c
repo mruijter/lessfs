@@ -12,8 +12,6 @@
 #include <sys/types.h>
 
 #include <tcutil.h>
-#include <tchdb.h>
-#include <tcbdb.h>
 #include <stdbool.h>
 #include "lib_log.h"
 #include "lib_safe.h"
@@ -25,7 +23,6 @@
 #endif
 #include "lib_qlz.h"
 #include "lib_common.h"
-#include "lib_tc.h"
 #include "commons.h"
 
 #ifdef i386
@@ -59,7 +56,7 @@ int main(int argc, char *argv[])
         usage(argv[0]);
 
     parseconfig(0, 0);
-    tc_defrag();
+    fprintf(stderr, "defrag is not currently supported\n");
     db_close(1);
     sync();
     exit(0);
