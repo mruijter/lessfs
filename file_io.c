@@ -433,7 +433,12 @@ void chunk_write(unsigned char *thehash,DAT *compressed, unsigned long long chun
     int open_flags;
 
     fullpath=hash_to_path(thehash,chunk_store);
-    
+
+    /* Ensure parent directory exists */
+    char *chunk_dir = s_dirname(fullpath);
+    mkpath(chunk_dir, 0755);
+    s_free(chunk_dir);
+
     /* Determine if we should use direct I/O */
     open_flags = O_CREAT | O_TRUNC | O_RDWR | O_NOATIME;
     if (config->direct_chunk_io && config->blockdata_io_type == CHUNK_IO) {
