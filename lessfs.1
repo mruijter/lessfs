@@ -14,10 +14,10 @@ lessfs - An inline data deduplicating filesystem
 .SH VERSION
 This man page documents lessfs version 1.7.0 (with no-deduplication mode support)
 .SH DESCRIPTION
-\fBlessfs\fR is a filesystem that optionally performs inline data deduplication. lessfs uses the 192-bit (24-byte) tiger hash algorithm by default to compare the data. The filesystem compresses the unique data blocks before writing them to disk. 
+\fBlessfs\fR is a filesystem that optionally performs inline data deduplication. lessfs uses the 192-bit (24-byte) tiger hash algorithm by default to compare the data. The filesystem compresses the unique data blocks before writing them to disk.
 .br
 Lessfs supports a large number of compression protocols. See COMPRESSION for details.
-.br 
+.br
 Lessfs 1.1 also supports a wide range of hashes to choose from with hash lenghts ranging from 192 to 512 bit. See HASHNAME for details.
 \FB\
 .PP
@@ -26,7 +26,7 @@ Lessfs 1.1 also supports a wide range of hashes to choose from with hash lenghts
 Greatly improves throughput when the filesystem is used for backup purposes. It requires a recent kernel >=2.6.26 and a recent version of libfuse.
 Must be used with max_read and max_write.
 .IP "max_read"
-Specify the blocksize, lessfs requires max_read and max_write to be equal. 
+Specify the blocksize, lessfs requires max_read and max_write to be equal.
 Valid values are : 4096,8192,16384,32768,65536,131072
 .IP "max_write"
 See max_read
@@ -37,14 +37,19 @@ Mounting lessfs with BLKSIZE specified in the configuration file is very simple.
 lessfs /etc/lessfs.cfg /fuse
 
 
-\nConfiguration examples for performance tuning:
-\nFor maximum performance (no deduplication, no compression):
+
+.br
+Configuration examples for performance tuning:
+.br
+For maximum performance (no deduplication, no compression):
 DEDUPLICATION=off
 COMPRESSION=disabled
-\nFor balanced performance (no deduplication, with compression):
+.br
+For balanced performance (no deduplication, with compression):
 DEDUPLICATION=off
 COMPRESSION=qlz
-\nFor maximum space efficiency (default):
+.br
+For maximum space efficiency (default):
 DEDUPLICATION=on
 COMPRESSION=qlz
 This will result in lessfs being mounted with the arguments:
@@ -78,12 +83,23 @@ This feature can be used for scripting.
 The configuration file should otherwise contain the following variables:
 .IP BLOCKDATA_IO_TYPE
 .nf
-The way that lessfs stores the actual data. 
+The way that lessfs stores the actual data.
 Valid options are \fBfile_io\fR or \fBchunk_io\fR
-Example: BLOCKDATA_IO_TYPE=file_io or chunk_io
-file_io is preferred although chunk_io has the advantage of 
-actually freeing up space when data is deleted from the filesystem. 
-chunk_io works well with btrfs.
+Example: BLOCKDATA_IO_TYPE=file_io or chunk_io.
+chunk_io is preferred since has the advantage of
+actually freeing up space when data is deleted from the filesystem and
+it supports direct_io which can be a huge performance advantage.
+.fi
+.IP DIRECT_CHUNK_IO=off
+.nf
+When BLOCKDATA_IO_TYPE=chunk_io, this option enables O_DIRECT for
+chunk I/O operations, bypassing the kernel page cache. This reduces
+memory pressure and avoids double caching since lessfs maintains its
+own write cache. Recommended for dedicated storage servers.
+.br
+Valid options are: on or off (default)
+.br
+This option is ignored when BLOCKDATA_IO_TYPE=file_io.
 .fi
 .IP "BLOCKDATA_PATH"
 .nf
@@ -93,7 +109,7 @@ Example with file_io : BLOCKDATA_PATH=/data/dta/mydtafile
 .fi
 .IP "BLOCKDATA_BS"
 .nf
-The bucketsize of the blockdata database. 
+The bucketsize of the blockdata database.
 Example: BLOCKDATA_BS=10485760
 .fi
 .IP "BLOCKUSAGE_PATH"
@@ -133,14 +149,14 @@ Only needed with the file_io backend, ignored otherwise. Is used to keep track o
 Only needed with the file_io backend.
 See BLOCKDATA_BS.
 .IP LISTEN_IP=127.0.0.1
-Specify the ip address where the lessfs management port binds to. Lessfs supports freeze and database defragmentation commands through this interface. 
+Specify the ip address where the lessfs management port binds to. Lessfs supports freeze and database defragmentation commands through this interface.
 .IP LISTEN_PORT=100
 Specifies the port where the management interface binds on. Default is port 100.
 .IP MIN_SPACE_FREE=10
 Specifies the minimum percentage or free space that has to be available. Lessfs suspends all I/O when less then the minumum required space is reached. This value defaults to 10%.
 .IP MIN_SPACE_CLEAN=25
 When MIN_SPACE_CLEAN is configured the program specified by CLEAN_PROGRAM will be executed. This program/script can be used to warn the administator or automatically delete old files. Please note that when CLEAN_PROGRAM is used with the file_io backend deleting files from lessfs will not free disk space on the underlying filesystem since file_io only marks deleted blocks as free in the freelist database.
-.IP CLEAN_PROGRAM=/usr/local/bin/warn_me.sh 
+.IP CLEAN_PROGRAM=/usr/local/bin/warn_me.sh
 .IP HASHLEN = 24
 The lenght of the hash that identifies the blocks of data measured in bytes. Minimum 20, maximum 32.
 .br
@@ -149,18 +165,23 @@ The default value is 24 (192 bits).
 The cachesize megabytes that lessfs is allowed to use as write cache.
 .IP COMMIT_INTERVAL=30
 .IP MAX_THREADS=2
-Do not set MAX_THREADS higher then the number of CPU cores available in the system. Lessfs will use MAX_THREADS	CPU cores for LZO or QUICKLZ compression to compress MAX_THREADS data blocks in parallel. The performance will suffer when this number is set higher then the number of CPU cores that are available in the system.
+The number of worker threads that process the write queue. Each worker
+thread dequeues a cached block, compresses it, and writes it to the
+database. Do not set MAX_THREADS higher than the number of CPU cores
+available. With the LMDB backend, 2-4 threads is the practical ceiling
+due to LMDB single-writer transaction serialization; additional threads
+will mostly wait on locks. Valid range: 1 to 1023.
 .IP COMMIT_INTERVAL=30
 Maximum age of entries that are kept in the cache. After this the cache will be written to disk.
 .IP DYNAMIC_DEFRAGMENTATION=on
 Automatic defragmentation feature (deprecated). Default = off when not specified.
 .IP COREDUMPSIZE=25600000
 Enable generation of coredumps for debugging. Default = off. Only usefull when lessfs is compiled with CFLAGS=-ggdb2
-.IP SYNC_RELAX=0 
+.IP SYNC_RELAX=0
 Valid options are : 0 (default) , 1 or 2
 .br
 \fB0\fR Flush all caches in lessfs for an inode and sync the databases to disk when fsync is called for an inode.
-.br 
+.br
 \fB1\fR Do not sync the databases to the disk when fsync is called on an inode. The inode data will be written directly to the databases. In case of a crash the databases themselves might not be committed to disk. This feature improves some types of I/O and is especially useful with NFS. There is a trade-off between more speed and the chance of possible loss of data. \fBUse with caution.\fR
 .br
 \fB2\fR Living on the edge. Do not flush the caches in lessfs and do not sync the databases to disk. \fBUse with extreme caution.\fR
@@ -194,7 +215,7 @@ Lessfs supports the following hashes: MHASH_SHA256, MHASH_SHA512, MHASH_WHIRLPOO
 .IP BLKSIZE=131072
 When BLKSIZE is specified in the configuration file lessfs can be mounted without specifying options. In this case lessfs will use a number of default options that make sense in most cases. If you would like to specify the options yourself then remove this line from the configuration.
 .br
-Valid options are: 4096,8192,16384,32768,65536,131072 
+Valid options are: 4096,8192,16384,32768,65536,131072
 .IP PASSWORD=somepassword
 When lessfs is used with encryption support enabled it is allowed though not recommended to specify the password in the configuration file. It is also possible to export the password in the environment with export PASSWORD=somepassword. Normally lessfs will prompt for a password when the filesystem is mounted. This is the default.
 .IP BACKGROUND_DELETE
@@ -210,13 +231,13 @@ The replication logfile will be renamed to name-CTIME. A sequence number is adde
 .IP REPLICATION_PARTNER_PORT=201
 The port on which the slave listens.
 .IP REPLICATION_ROLE=master
-Valid options are master or slave. 
+Valid options are master or slave.
 .IP REPLICATION_LISTEN_IP=127.0.0.1
 The ip adress on which the slave will listen. Only needed when configuring a slave.
 .IP REPLICATION_WATCHDIR=/some/path
 This option is only valid for a lessfs slave. When configured the slave will not listen to REPLICATION_LISTEN_IP, instead it will search for replication logfiles in the path specified. The files need to be named replog.dta-SEQUENCENUMBER as they where created by the master. The slave does not wait for incomming files to be complete. So when the files are copied you should copy them to a file with a different name, like .replog.dta-SEQUENCENUMBER and rename the file when the transfer has completed. When the slave has processed the file it will rename it to replog.dta-SEQUENCENUMBER-processed.
 .IP REPLICATION_LISTEN_PORT=201
-The port on which the slave will listen. 
+The port on which the slave will listen.
 .IP REPLICATION_ENABLED=off (default) or on
 When enabled all data stored on the master is directly send to the slave. When disabled the master will write data stored in a replog file as well as it's databases. The replog file will be used to transfer the data to the slave when replication becomes enabled.
 .IP MAX_BACKLOG_SIZE=0 (default)
@@ -237,10 +258,20 @@ Valid options are 0..5.
 .br
 \fB>3\fR Enable logging of critical errors, warnings, informational messages and debug and other messages.
 .SS BERKELEYDB SPECIFIC OPTIONS
-.IP BDB_PRIVATE=on 
-Valid options are : off (default) or on. This option is only valid when lessfs is compiled with BerkeleyDB support. Enabling DB_PRIVATE can improve performance at the cost of making it impossible to use third party tools like db_stat. 
+.IP BDB_PRIVATE=on
+Valid options are : off (default) or on. This option is only valid when lessfs is compiled with BerkeleyDB support. Enabling DB_PRIVATE can improve performance at the cost of making it impossible to use third party tools like db_stat.
 .IP TUNEFORSIZE=medium
 Valid options are : small (default), medium or huge. This option is only valid when lessfs is compiled with BerkeleyDB support. It enables BerkeleyDB database partitioning. Use small when lessfs will store less then 1TB of data. Medium will tune lessfs to store up to 10TB. Huge will indicate more then 10TB. Tuning DB_CONFIG for cache size and locks is still needed and not effected by these settings!
+.SS LMDB SPECIFIC OPTIONS
+.IP LMDB_MAPSIZE=10737418240
+The maximum size in bytes of the LMDB memory-mapped database. This
+value defines the upper limit of the database and must be set large
+enough to hold all metadata. LMDB will not use this much physical
+memory; it reserves virtual address space and maps pages on demand.
+The default is 10GB (10737418240). Increase this value when the
+filesystem will store a very large number of files or blocks.
+This option is only valid when lessfs is compiled with LMDB support
+(configure --with-lmdb).
 .SH SEE ALSO
 .BR replogfile (1)
 .SH COMPRESSION STATISTICS
@@ -271,7 +302,7 @@ Copyright (C) 2008-2010  Mark Ruijter
 You can redistribute lessfs and/or modify it
 under the terms of either
 (1) the GNU General Public License as published by
-the Free Software Foundation; or (2) obtain a commercial license 
+the Free Software Foundation; or (2) obtain a commercial license
 by contacting the Author.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see \fB<http://www.gnu.org/licenses/>\fR.

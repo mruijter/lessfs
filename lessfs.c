@@ -216,6 +216,62 @@ static int lessfs_getattr(const char *path, struct stat *stbuf)
     return (res);
 }
 
+static int lessfs_fgetattr(const char *path,
+                           struct stat *stbuf,
+                           struct fuse_file_info *fi)
+{
+    int res = 0;
+    unsigned long long inode;
+    const char *data;
+    int vsize;
+    MEMDDSTAT *memddstat;
+    DAT *dskdata;
+    DDSTAT *ddstat;
+
+    FUNC;
+    if (path != NULL)
+        return lessfs_getattr(path, stbuf);
+
+    /* path is NULL: file was unlinked but still open.
+       Look up the inode stored in fi->fh by lessfs_open */
+    if (fi == NULL || fi->fh == 0)
+        return -ENOENT;
+
+    inode = fi->fh;
+    get_global_lock((char *) __PRETTY_FUNCTION__);
+
+    /* Try metatree cache first */
+    meta_lock((char *) __PRETTY_FUNCTION__);
+    data = tctreeget(metatree, &inode,
+                     sizeof(unsigned long long), &vsize);
+    if (data) {
+        memddstat = (MEMDDSTAT *) data;
+        memcpy(stbuf, &memddstat->stbuf,
+               sizeof(struct stat));
+        release_meta_lock();
+        goto out;
+    }
+    release_meta_lock();
+
+    /* Fall back to on-disk database */
+    dskdata = search_dbdata(DBP, &inode,
+                            sizeof(unsigned long long),
+                            LOCK);
+    if (dskdata == NULL) {
+        res = -ENOENT;
+        goto out;
+    }
+    ddstat = value_to_ddstat(dskdata);
+    memcpy(stbuf, &ddstat->stbuf, sizeof(struct stat));
+    DATfree(dskdata);
+    ddstatfree(ddstat);
+
+  out:
+    release_global_lock();
+    EFUNC;
+    return (res);
+}
+
 static int lessfs_access(const char *path, int mask)
 {
     int res = 0;
@@ -574,7 +630,31 @@ static int lessfs_truncate(const char *path, off_t size)
     return (res);
 }
 
-static int lessfs_utimens(const char *path, const struct timespec ts[2])
+static void apply_timespec(struct stat *target_stbuf,
+                           const struct timespec ts[2])
+{
+    time_t now_sec;
+
+    if (ts[0].tv_nsec == UTIME_NOW) {
+        now_sec = time(NULL);
+        target_stbuf->st_atim.tv_sec = now_sec;
+        target_stbuf->st_atim.tv_nsec = 0;
+    } else if (ts[0].tv_nsec != UTIME_OMIT) {
+        target_stbuf->st_atim.tv_sec = ts[0].tv_sec;
+        target_stbuf->st_atim.tv_nsec = ts[0].tv_nsec;
+    }
+    if (ts[1].tv_nsec == UTIME_NOW) {
+        now_sec = time(NULL);
+        target_stbuf->st_mtim.tv_sec = now_sec;
+        target_stbuf->st_mtim.tv_nsec = 0;
+    } else if (ts[1].tv_nsec != UTIME_OMIT) {
+        target_stbuf->st_mtim.tv_sec = ts[1].tv_sec;
+        target_stbuf->st_mtim.tv_nsec = ts[1].tv_nsec;
+    }
+}
+
+static int lessfs_utimens(const char *path,
+                          const struct timespec ts[2])
 {
     int res = 0;
     struct stat stbuf;
@@ -594,38 +674,41 @@ static int lessfs_utimens(const char *path, const struct timespec ts[2])
                      sizeof(unsigned long long), &vsize);
     if (data) {
         memddstat = (MEMDDSTAT *) data;
-        memddstat->stbuf.st_atim.tv_sec = ts[0].tv_sec;
-        memddstat->stbuf.st_atim.tv_nsec = ts[0].tv_nsec;
-        memddstat->stbuf.st_mtim.tv_sec = ts[1].tv_sec;
-        memddstat->stbuf.st_mtim.tv_nsec = ts[1].tv_nsec;
+        apply_timespec(&memddstat->stbuf, ts);
         memddstat->updated = 1;
         ddbuf = create_mem_ddbuf(memddstat);
         tctreeput(metatree, &stbuf.st_ino,
-                  sizeof(unsigned long long), (void *) ddbuf->data,
+                  sizeof(unsigned long long),
+                  (void *) ddbuf->data,
                   ddbuf->size);
         cache_p2i((char *) path, &memddstat->stbuf);
         DATfree(ddbuf);
     } else {
         dskdata =
-            search_dbdata(DBP, &stbuf.st_ino, sizeof(unsigned long long),
+            search_dbdata(DBP, &stbuf.st_ino,
+                          sizeof(unsigned long long),
                           LOCK);
         if (dskdata == NULL) {
 #ifdef x86_64
-            die_dataerr("Failed to find file %lu", stbuf.st_ino);
+            die_dataerr(
+                "Failed to find file %lu",
+                stbuf.st_ino);
 #else
-            die_dataerr("Failed to find file %llu", stbuf.st_ino);
+            die_dataerr(
+                "Failed to find file %llu",
+                stbuf.st_ino);
 #endif
         }
         ddstat = value_to_ddstat(dskdata);
-        ddstat->stbuf.st_atim.tv_sec = ts[0].tv_sec;
-        ddstat->stbuf.st_atim.tv_nsec = ts[0].tv_nsec;
-        ddstat->stbuf.st_mtim.tv_sec = ts[1].tv_sec;
-        ddstat->stbuf.st_mtim.tv_nsec = ts[1].tv_nsec;
+        apply_timespec(&ddstat->stbuf, ts);
         ddbuf =
-            create_ddbuf(ddstat->stbuf, ddstat->filename,
+            create_ddbuf(ddstat->stbuf,
+                         ddstat->filename,
                          ddstat->real_size);
-        bin_write_dbdata(DBP, &stbuf.st_ino, sizeof(unsigned long long),
-                         (void *) ddbuf->data, ddbuf->size);
+        bin_write_dbdata(DBP, &stbuf.st_ino,
+                         sizeof(unsigned long long),
+                         (void *) ddbuf->data,
+                         ddbuf->size);
         cache_p2i((char *) path, &ddstat->stbuf);
         DATfree(dskdata);
         DATfree(ddbuf);
@@ -1019,7 +1102,8 @@ static int lessfs_release(const char *path, struct fuse_file_info *fi)
             // Update the filesize when needed.
             update_filesize_onclose(fi->fh);
             tctreeout(metatree, &fi->fh, sizeof(unsigned long long));
-            invalidate_p2i((char *) path);
+            if (path != NULL)
+                invalidate_p2i((char *) path);
             LDEBUG("lessfs_release : Delete cache for %llu", fi->fh);
         } else {
             memddstat->opened--;
@@ -1586,16 +1670,16 @@ void *init_worker(void *arg)
     char *key;
     int size;
     int vsize;
-    int found[max_threads];
+    int found;
     char *dupkey;
     int index;
     TCLIST *keylist;
 
     memcpy(&count, arg, sizeof(int));   // count is thread number.
     s_free(arg);
-    found[count] = 0;
+    found = 0;
     while (1) {
-        if (found[count] == 0) {
+        if (found == 0) {
             usleep(10000);
             if (config->replication && config->replication_role == 0
                 && 0 != strcmp(config->replication_partner_ip, "-1")) {
@@ -1607,7 +1691,7 @@ void *init_worker(void *arg)
                        || config->replication_enabled == 0)
                 config->safe_down = 1;
         }
-        found[count] = 0;
+        found = 0;
         write_lock((char *) __PRETTY_FUNCTION__);
         keylist = tctreekeys(workqtree);
         index = 0;
@@ -1621,7 +1705,7 @@ void *init_worker(void *arg)
                 dupkey = s_malloc(size);
                 memcpy(dupkey, key, size);
                 tctreeout(workqtree, key, size);
-                found[count]++;
+                found++;
                 tclistdel(keylist);
                 release_write_lock();
                 worker_lock((char *) __PRETTY_FUNCTION__);
@@ -1637,7 +1721,7 @@ void *init_worker(void *arg)
                 die_dataerr("Key without value in workers");
         } else
             tclistdel(keylist);
-        if (0 == found[count])
+        if (0 == found)
             release_write_lock();
     }
     LFATAL("Thread %u exits", count);
@@ -1782,6 +1866,8 @@ static void *lessfs_init()
         die_dataerr
             ("Configuration error : MAX_ALLOWED_THREADS should be less then %i",
              MAX_ALLOWED_THREADS - 1);
+    if (max_threads < 1)
+        max_threads = 1;
     pthread_t worker_thread[max_threads];
     pthread_t ioctl_thread;
     pthread_t replication_thread;
@@ -1898,6 +1984,9 @@ static struct fuse_operations lessfs_oper = {
     .fsync = lessfs_fsync,
     .destroy = lessfs_destroy,
     .init = lessfs_init,
+    .flag_utime_omit_ok = 1,
+    .flag_nullpath_ok = 1,
+    .fgetattr = lessfs_fgetattr,
 };
 
 void usage(char *appName)

@@ -3220,6 +3220,11 @@ int fs_rename(const char *from, const char *to, struct stat stbuf)
                         (char *) __PRETTY_FUNCTION__);
         btbin_write_dup(DBDIRENT, &todirnode, sizeof(unsigned long long),
                         &inode, sizeof(unsigned long long), LOCK);
+        /* POSIX: update parent nlink for directory moves */
+        if (S_ISDIR(stbuf.st_mode)) {
+            update_parent_time(fromdir, -1);
+            update_parent_time(todir, 1);
+        }
     }
     DATfree(dataptr);
     DATfree(ddbuf);
