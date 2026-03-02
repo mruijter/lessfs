@@ -3127,6 +3127,8 @@ int fs_rename_link(const char *from, const char *to, struct stat stbuf)
     FUNC;
 
     LDEBUG("fs_rename_link from: %s : to %s", (char *) from, (char *) to);
+    invalidate_p2i((char *) from);
+    invalidate_p2i((char *) to);
     if (0 == strcmp(from, to))
         return (0);
     if (-ENOENT != dbstat(to, &st, 0)) {
@@ -3190,6 +3192,8 @@ int fs_rename(const char *from, const char *to, struct stat stbuf)
     FUNC;
 
     LDEBUG("fs_rename from: %s : to %s", (char *) from, (char *) to);
+    invalidate_p2i((char *) from);
+    invalidate_p2i((char *) to);
     todir = s_dirname((char *) to);
     todirnode = get_inode(todir);
     tonode = get_inode(to);

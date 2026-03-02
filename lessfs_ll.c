@@ -97,6 +97,9 @@ extern char *bdb_lockedby;
 extern char *bdb_lockedby;
 #endif
 
+
+/* Maximum filename component length (POSIX NAME_MAX) */
+#define LESSFS_NAME_MAX 255
 unsigned long working = 0;
 unsigned long sequence = 0;
 
@@ -545,6 +548,10 @@ static void ll_lookup(fuse_req_t req,
     unsigned long long parent_ino = parent;
 
     FUNC;
+    if (strlen(name) > LESSFS_NAME_MAX) {
+        fuse_reply_err(req, ENAMETOOLONG);
+        return;
+    }
     get_global_lock((char *) __PRETTY_FUNCTION__);
 
     ddstat = dnode_bname_to_inode(
@@ -829,6 +836,10 @@ static void ll_mknod(fuse_req_t req,
     int res;
 
     FUNC;
+    if (strlen(name) > LESSFS_NAME_MAX) {
+        fuse_reply_err(req, ENAMETOOLONG);
+        return;
+    }
     if (config->replication == 1
         && config->replication_role == 1) {
         fuse_reply_err(req, EPERM);
@@ -909,6 +920,10 @@ static void ll_mkdir(fuse_req_t req,
     int ret;
 
     FUNC;
+    if (strlen(name) > LESSFS_NAME_MAX) {
+        fuse_reply_err(req, ENAMETOOLONG);
+        return;
+    }
     if (config->replication == 1
         && config->replication_role == 1) {
         fuse_reply_err(req, EPERM);
@@ -1040,6 +1055,10 @@ static void ll_unlink(fuse_req_t req,
     int file_is_open = 0;
 
     FUNC;
+    if (strlen(name) > LESSFS_NAME_MAX) {
+        fuse_reply_err(req, ENAMETOOLONG);
+        return;
+    }
     if (config->replication == 1
         && config->replication_role == 1) {
         fuse_reply_err(req, EPERM);
@@ -1228,6 +1247,10 @@ static void ll_rmdir(fuse_req_t req,
     char *parentpath;
 
     FUNC;
+    if (strlen(name) > LESSFS_NAME_MAX) {
+        fuse_reply_err(req, ENAMETOOLONG);
+        return;
+    }
     if (config->replication == 1
         && config->replication_role == 1) {
         fuse_reply_err(req, EPERM);
@@ -1275,6 +1298,10 @@ static void ll_symlink(fuse_req_t req,
     int res;
 
     FUNC;
+    if (strlen(name) > LESSFS_NAME_MAX) {
+        fuse_reply_err(req, ENAMETOOLONG);
+        return;
+    }
     get_global_lock((char *) __PRETTY_FUNCTION__);
 
     parentpath = inode_to_path(parent_ino);
@@ -1341,6 +1368,14 @@ static void ll_rename(fuse_req_t req,
     DDSTAT *ddstat;
 
     FUNC;
+    if (strlen(name) > LESSFS_NAME_MAX) {
+        fuse_reply_err(req, ENAMETOOLONG);
+        return;
+    }
+    if (strlen(newname) > LESSFS_NAME_MAX) {
+        fuse_reply_err(req, ENAMETOOLONG);
+        return;
+    }
     if (config->replication == 1
         && config->replication_role == 1) {
         fuse_reply_err(req, EPERM);
@@ -1431,6 +1466,10 @@ static void ll_link(fuse_req_t req,
     int res;
 
     FUNC;
+    if (strlen(newname) > LESSFS_NAME_MAX) {
+        fuse_reply_err(req, ENAMETOOLONG);
+        return;
+    }
     if (config->replication == 1
         && config->replication_role == 1) {
         fuse_reply_err(req, EPERM);
