@@ -543,8 +543,8 @@ void watchdir()
             merge_replog();
             found = 1;
             next_sequence();
-            commit_transactions();
-            start_transactions();
+            /* Per-lock txns: sync env instead */
+            bdb_checkpoint();
             s_free(name);
             name =
                 as_sprintf(__FILE__, __LINE__, "replog.dta-%lu-processed",

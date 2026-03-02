@@ -238,3 +238,19 @@ INUSE *get_offset(unsigned long long);
 void inobnolistsort(TCLIST *list);
 void mkchunk_dir(char *);
 unsigned char *hash_to_ascii(unsigned char *);
+/* Low-level FUSE API support functions */
+char *inode_to_path(unsigned long long);
+#ifdef FUSE_USE_VERSION
+#if FUSE_USE_VERSION >= 29
+size_t fs_readdir_ll(fuse_req_t, unsigned long long,
+                     char *, size_t, off_t);
+#endif
+#endif
+void mark_dirty(void);
+int check_dirty(void);
+void check_blocksize(void);
+int verify_kernel_version(void);
+unsigned long long get_real_size(unsigned long long);
+void add2cache(INOBNO *, const char *, off_t, size_t);
+int check_free_space(char *);
+void freeze_nospace(char *);

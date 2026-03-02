@@ -16,6 +16,9 @@
  *   PARTICULAR PURPOSE. See the GNU General Public License
  *   for more details.
  */
+#ifndef FUSE_USE_VERSION
+#define FUSE_USE_VERSION 29
+#endif
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -31,6 +34,7 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <lmdb.h>
+#include <fuse/fuse_lowlevel.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -121,20 +125,40 @@ static MDB_dbi lmdb_set_db(int database)
 
 void bdb_lock(const char *msg)
 {
+    int ret;
     pthread_mutex_lock(&lmdb_mutex);
     lmdb_lockedby = msg;
+    ret = mdb_txn_begin(lmdb_env, NULL, 0, &write_txn);
+    if (ret != 0)
+        die_lmdberr("bdb_lock txn_begin: %s",
+                     mdb_strerror(ret));
 }
 
 int try_bdb_lock(void)
 {
     int ret = pthread_mutex_trylock(&lmdb_mutex);
-    if (ret == 0)
+    if (ret == 0) {
+        int txret;
         lmdb_lockedby = "try_bdb_lock";
+        txret = mdb_txn_begin(lmdb_env, NULL, 0,
+                               &write_txn);
+        if (txret != 0)
+            die_lmdberr("try_bdb_lock txn_begin: %s",
+                         mdb_strerror(txret));
+    }
     return ret;
 }
 
 void release_bdb_lock(void)
 {
+    if (write_txn) {
+        int ret = mdb_txn_commit(write_txn);
+        write_txn = NULL;
+        if (ret != 0)
+            die_lmdberr(
+                "release_bdb_lock commit: %s",
+                mdb_strerror(ret));
+    }
     lmdb_lockedby = NULL;
     pthread_mutex_unlock(&lmdb_mutex);
 }
@@ -184,9 +208,12 @@ void commit_transactions(void)
 void abort_transactions(void)
 {
     FUNC;
-    mdb_txn_abort(write_txn);
-    write_txn = NULL;
-    start_transactions();
+    if (write_txn) {
+        mdb_txn_abort(write_txn);
+        write_txn = NULL;
+    }
+    /* Per-lock txns: no need to restart;
+       release_bdb_lock handles NULL write_txn */
     EFUNC;
 }
 
@@ -327,8 +354,8 @@ void bdb_open(void)
 
     LINFO("LMDB databases are now open.");
 
-    /* Start the working write transaction */
-    start_transactions();
+    /* Per-lock transactions: no persistent write_txn */
+    write_txn = NULL;
     open_trees();
 
     if (config->blockdata_io_type == FILE_IO) {
@@ -562,10 +589,9 @@ void start_flush_commit(void)
     if (config->blockdata_io_type == FILE_IO) {
         fsync(fdbdta);
     }
-    bdb_lock((char *) __PRETTY_FUNCTION__);
-    commit_transactions();
-    start_transactions();
-    release_bdb_lock();
+    /* Per-lock txns: each operation already committed.
+       Sync LMDB env to disk for durability. */
+    mdb_env_sync(lmdb_env, 1);
     EFUNC;
 }
 
@@ -573,10 +599,8 @@ void end_flush_commit(void)
 {
     FUNC;
     if (config->transactions) {
-        bdb_lock((char *) __PRETTY_FUNCTION__);
-        commit_transactions();
-        start_transactions();
-        release_bdb_lock();
+        /* Per-lock txns: sync env for durability */
+        mdb_env_sync(lmdb_env, 1);
     }
     EFUNC;
 }
@@ -1747,3 +1771,311 @@ void flistdbu()
 }
 
 #endif /* LMDB */
+
+/*
+ * inode_to_path: reconstruct the full path for an
+ * inode by walking up the directory tree via DBDIRENT.
+ * Returns a freshly allocated path string, or NULL
+ * if not found.  Caller must s_free() the result.
+ *
+ * Works by: for each inode, look up its DDSTAT to get
+ * the filename, then find which parent directory
+ * contains it via DBDIRENT reverse lookup.
+ */
+char *inode_to_path(unsigned long long inode)
+{
+    char *components[256];
+    int depth = 0;
+    unsigned long long cur_ino = inode;
+    DAT *dskdata;
+    DDSTAT *ddstat;
+    MDB_cursor *cur;
+    MDB_val mkey, mdata;
+    int ret;
+    unsigned long long parent_ino;
+    int found;
+    char *result;
+    int total_len;
+    int idx;
+
+    FUNC;
+    /* Root inode is always 1 */
+    if (cur_ino == 1)
+        return s_strdup("/");
+
+    bdb_lock((char *) __PRETTY_FUNCTION__);
+
+    while (cur_ino != 1 && depth < 255) {
+        /* Get the filename for cur_ino */
+        dskdata = search_dbdata(DBP, &cur_ino,
+            sizeof(unsigned long long), NOLOCK);
+        if (dskdata == NULL) {
+            release_bdb_lock();
+            goto fail;
+        }
+        ddstat = value_to_ddstat(dskdata);
+        DATfree(dskdata);
+
+        if (strcmp(ddstat->filename, "/") == 0) {
+            ddstatfree(ddstat);
+            break;  /* reached root */
+        }
+        if (ddstat->filename[0] == 0) {
+            /* Hardlinked file: empty DBP filename.
+               Look up a name via DBL. */
+            DAT *lnk = btsearch_keyval(DBL,
+                &cur_ino,
+                sizeof(unsigned long long),
+                NULL, 0, NOLOCK);
+            if (lnk) {
+                DINOINO dino;
+                DAT *nm;
+                memcpy(&dino, lnk->data,
+                       lnk->size);
+                DATfree(lnk);
+                nm = btsearch_keyval(DBL,
+                    &dino, sizeof(DINOINO),
+                    NULL, 0, NOLOCK);
+                if (nm) {
+                    components[depth] =
+                        s_zmalloc(nm->size + 1);
+                    memcpy(components[depth],
+                           nm->data, nm->size);
+                    depth++;
+                    DATfree(nm);
+                    ddstatfree(ddstat);
+                } else {
+                    ddstatfree(ddstat);
+                    release_bdb_lock();
+                    goto fail;
+                }
+            } else {
+                ddstatfree(ddstat);
+                release_bdb_lock();
+                goto fail;
+            }
+        } else {
+            components[depth] =
+                s_strdup(ddstat->filename);
+            depth++;
+            ddstatfree(ddstat);
+        }
+
+        /*
+         * Find the parent: scan DBDIRENT looking
+         * for a directory that contains cur_ino as
+         * a child.
+         */
+        found = 0;
+        ret = mdb_cursor_open(write_txn,
+                              dbi_dbdirent, &cur);
+        if (ret != 0) {
+            release_bdb_lock();
+            goto fail;
+        }
+
+        ret = mdb_cursor_get(cur, &mkey, &mdata,
+                             MDB_FIRST);
+        while (ret == 0) {
+            if (mdata.mv_size
+                == sizeof(unsigned long long)) {
+                unsigned long long child_ino;
+                memcpy(&child_ino, mdata.mv_data,
+                       sizeof(unsigned long long));
+                if (child_ino == cur_ino) {
+                    unsigned long long key_ino;
+                    memcpy(&key_ino, mkey.mv_data,
+                        sizeof(unsigned long long));
+                    if (key_ino != cur_ino) {
+                        parent_ino = key_ino;
+                        found = 1;
+                        break;
+                    }
+                }
+            }
+            ret = mdb_cursor_get(cur, &mkey, &mdata,
+                                 MDB_NEXT);
+        }
+        mdb_cursor_close(cur);
+
+        if (!found) {
+            /* Probably reached root indirectly */
+            break;
+        }
+        cur_ino = parent_ino;
+    }
+
+    release_bdb_lock();
+
+    if (depth == 0)
+        return s_strdup("/");
+
+    /* Build path from components (reverse order) */
+    total_len = 1;  /* leading '/' */
+    for (idx = depth - 1; idx >= 0; idx--)
+        total_len += strlen(components[idx]) + 1;
+
+    result = s_malloc(total_len + 1);
+    result[0] = 0;
+    for (idx = depth - 1; idx >= 0; idx--) {
+        strcat(result, "/");
+        strcat(result, components[idx]);
+        s_free(components[idx]);
+    }
+
+    EFUNC;
+    return result;
+
+fail:
+    for (idx = 0; idx < depth; idx++)
+        s_free(components[idx]);
+    return NULL;
+}
+
+/*
+ * fs_readdir_ll: low-level readdir for the LMDB
+ * backend.  Fills buf using fuse_add_direntry().
+ * Returns the number of bytes used in buf.
+ */
+size_t fs_readdir_ll(fuse_req_t req,
+                     unsigned long long dir_ino,
+                     char *buf, size_t bufsize,
+                     off_t off)
+{
+    MDB_cursor *cur;
+    MDB_val mkey, mdata;
+    int ret;
+    DAT *filedata;
+    DDSTAT *ddstat;
+    struct stat stbuf;
+    size_t buf_used = 0;
+    size_t entsize;
+    off_t idx = 0;
+    char *bname;
+
+    FUNC;
+    bdb_lock((char *) __PRETTY_FUNCTION__);
+
+    ret = mdb_cursor_open(write_txn,
+                          dbi_dbdirent, &cur);
+    if (ret != 0) {
+        release_bdb_lock();
+        return 0;
+    }
+
+    mkey.mv_data = &dir_ino;
+    mkey.mv_size = sizeof(unsigned long long);
+
+    ret = mdb_cursor_get(cur, &mkey, &mdata,
+                         MDB_SET_KEY);
+    if (ret == 0) {
+        do {
+            unsigned long long child_ino;
+            memcpy(&child_ino, mdata.mv_data,
+                   sizeof(unsigned long long));
+
+            /* Skip self-referencing entries */
+            if (child_ino == dir_ino)
+                goto next_entry;
+
+            filedata = search_dbdata(DBP,
+                &child_ino,
+                sizeof(unsigned long long),
+                NOLOCK);
+            if (filedata == NULL)
+                goto next_entry;
+
+            ddstat = value_to_ddstat(filedata);
+            DATfree(filedata);
+
+            bname = s_basename(ddstat->filename);
+            if (bname == NULL
+                || strcmp(bname, "/") == 0) {
+                if (bname)
+                    s_free(bname);
+                ddstatfree(ddstat);
+                goto next_entry;
+            }
+
+            /* Skip entries before 'off' */
+            if (idx < off) {
+                idx++;
+                s_free(bname);
+                ddstatfree(ddstat);
+                goto next_entry;
+            }
+
+            memcpy(&stbuf, &ddstat->stbuf,
+                   sizeof(struct stat));
+            entsize = fuse_add_direntry(
+                req, buf + buf_used,
+                bufsize - buf_used,
+                bname, &stbuf, idx + 1);
+
+            s_free(bname);
+
+            /*
+             * If hardlink (empty filename), get
+             * the link name from DBL.
+             */
+            if (ddstat->filename[0] == 0) {
+                DINOINO dinoino;
+                MDB_cursor *lcur;
+                MDB_val lkey, ldata;
+                int lret;
+
+                dinoino.dirnode = dir_ino;
+                dinoino.inode =
+                    ddstat->stbuf.st_ino;
+                lret = mdb_cursor_open(
+                    write_txn, dbi_dbl, &lcur);
+                if (lret == 0) {
+                    lkey.mv_data = &dinoino;
+                    lkey.mv_size =
+                        sizeof(DINOINO);
+                    lret = mdb_cursor_get(
+                        lcur, &lkey, &ldata,
+                        MDB_SET_KEY);
+                    if (lret == 0) {
+                        /* Re-add with the right
+                           name */
+                        char linkname[257];
+                        size_t nlen =
+                            ldata.mv_size < 256
+                            ? ldata.mv_size : 256;
+                        memcpy(linkname,
+                               ldata.mv_data,
+                               nlen);
+                        linkname[nlen] = 0;
+                        /* Recalculate entsize */
+                        buf_used -= entsize;
+                        entsize =
+                            fuse_add_direntry(
+                                req,
+                                buf + buf_used,
+                                bufsize - buf_used,
+                                linkname, &stbuf,
+                                idx + 1);
+                    }
+                    mdb_cursor_close(lcur);
+                }
+            }
+            ddstatfree(ddstat);
+
+            if (entsize > bufsize - buf_used) {
+                /* Buffer full */
+                break;
+            }
+            buf_used += entsize;
+            idx++;
+
+          next_entry:
+            ;
+        } while (0 == mdb_cursor_get(cur, &mkey,
+                         &mdata, MDB_NEXT_DUP));
+    }
+    mdb_cursor_close(cur);
+    release_bdb_lock();
+    EFUNC;
+    return buf_used;
+}

@@ -2991,6 +2991,7 @@ int fs_link(char *from, char *to)
 
     FUNC;
     LDEBUG("fs_link called with from=%s to=%s", from, to);
+    invalidate_p2i(from);
     res = dbstat(from, &stbuf, 0);
 
     if (res != 0)
@@ -3037,10 +3038,25 @@ int fs_link(char *from, char *to)
         DATfree(ddbuf);
     }
     release_meta_lock();
-    ddbuf = create_ddbuf(stbuf, NULL, 0);
-    LDEBUG("fs_link : update links on %llu to %i", inode, stbuf.st_nlink);
-    bin_write_dbdata(DBP, &inode, sizeof(unsigned long long),
-                     ddbuf->data, ddbuf->size);
+    /* Preserve real_size from existing DBP entry */
+    {
+        DAT *old_data = search_dbdata(DBP, &inode,
+            sizeof(unsigned long long), LOCK);
+        unsigned long long saved_real_size = 0;
+        if (old_data) {
+            DDSTAT *old_dd = value_to_ddstat(old_data);
+            saved_real_size = old_dd->real_size;
+            DATfree(old_data);
+            ddstatfree(old_dd);
+        }
+        ddbuf = create_ddbuf(stbuf, NULL,
+                             saved_real_size);
+    }
+    LDEBUG("fs_link : update links on %llu"
+           " to %i", inode, stbuf.st_nlink);
+    bin_write_dbdata(DBP, &inode,
+        sizeof(unsigned long long),
+        ddbuf->data, ddbuf->size);
     DATfree(ddbuf);
 /* Link dest filename inode to dest directory if it does not exist*/
     if (0 ==

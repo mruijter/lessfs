@@ -80,4 +80,5 @@ void list_hardlinks(void);
 void bdb_stat(void);
 void abort_transactions(void);
 
+char *inode_to_path(unsigned long long);
 #endif /* LIB_LMDB_H */
