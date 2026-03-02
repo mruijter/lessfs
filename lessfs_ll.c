@@ -857,6 +857,9 @@ static void ll_mknod(fuse_req_t req,
                               "%s/%s", parentpath,
                               name);
 
+    { const struct fuse_ctx *rctx = fuse_req_ctx(req);
+      ll_caller_uid = rctx->uid;
+      ll_caller_gid = rctx->gid; }
     dbmknod(fullpath, mode, NULL, rdev);
 
     /* Update parent mtime/ctime */
@@ -929,6 +932,9 @@ static void ll_mkdir(fuse_req_t req,
                               "%s/%s", parentpath,
                               name);
 
+    { const struct fuse_ctx *rctx = fuse_req_ctx(req);
+      ll_caller_uid = rctx->uid;
+      ll_caller_gid = rctx->gid; }
     ret = fs_mkdir(fullpath, mode);
     if (ret != 0) {
         s_free(fullpath);
@@ -1285,6 +1291,9 @@ static void ll_symlink(fuse_req_t req,
                               "%s/%s", parentpath,
                               name);
 
+    { const struct fuse_ctx *rctx = fuse_req_ctx(req);
+      ll_caller_uid = rctx->uid;
+      ll_caller_gid = rctx->gid; }
     res = fs_symlink((char *) link, fullpath);
     if (res != 0) {
         s_free(fullpath);

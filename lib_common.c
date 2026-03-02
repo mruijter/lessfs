@@ -76,6 +76,13 @@
 #include "lib_net.h"
 #include "file_io.h"
 #include "lib_repl.h"
+
+/* Thread-local caller credentials for low-level FUSE.
+   Set by LL callbacks before calling lib_common functions.
+   Defaults to 0 (root) for mklessfs/non-FUSE callers. */
+__thread uid_t ll_caller_uid = 0;
+__thread gid_t ll_caller_gid = 0;
+
 #include "retcodes.h"
 #ifdef ENABLE_CRYPTO
 #include "lib_crypto.h"
@@ -1322,8 +1329,8 @@ void write_file_ent(const char *filename, unsigned long long inode,
             stbuf.st_uid = 0;
             stbuf.st_gid = 0;
         } else {
-            stbuf.st_uid = fuse_get_context()->uid;
-            stbuf.st_gid = fuse_get_context()->gid;
+            stbuf.st_uid = ll_caller_uid;
+            stbuf.st_gid = ll_caller_gid;
         }
     } else {
         stbuf.st_uid = 0;

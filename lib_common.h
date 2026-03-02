@@ -110,6 +110,10 @@ unsigned char *thash(unsigned char *, int);
 void check_datafile_sanity();
 int fs_readlink(const char *, char *, size_t);
 int fs_symlink(char *, char *);
+/* Thread-local caller credentials (LL FUSE) */
+extern __thread uid_t ll_caller_uid;
+extern __thread gid_t ll_caller_gid;
+
 void invalidate_p2i(char *);
 void erase_p2i();
 void cache_p2i(char *, struct stat *);
