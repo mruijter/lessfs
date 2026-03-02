@@ -2599,14 +2599,16 @@ int main(int argc, char *argv[])
     mountpoint = NULL;
     {
         int multithreaded;
-        int foreground;
+        int foreground_flag = 0;
         if (fuse_parse_cmdline(&args, &mountpoint,
                                &multithreaded,
-                               &foreground) == -1) {
+                               &foreground_flag) == -1) {
             fprintf(stderr,
                 "Failed to parse command line\n");
             exit(EXIT_SYSTEM);
         }
+        /* Daemonize unless -f was given */
+        fuse_daemonize(foreground_flag);
     }
 
     if (mountpoint == NULL) {
