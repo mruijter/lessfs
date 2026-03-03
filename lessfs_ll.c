@@ -868,6 +868,20 @@ static void ll_mknod(fuse_req_t req,
                               "%s/%s", parentpath,
                               name);
 
+    /* Reject if name already exists in parent */
+    ddstat = dnode_bname_to_inode(
+        &parent_ino,
+        sizeof(unsigned long long),
+        (char *) name);
+    if (ddstat != NULL) {
+        ddstatfree(ddstat);
+        s_free(fullpath);
+        s_free(parentpath);
+        release_global_lock();
+        fuse_reply_err(req, EEXIST);
+        return;
+    }
+
     { const struct fuse_ctx *rctx = fuse_req_ctx(req);
       ll_caller_uid = rctx->uid;
       ll_caller_gid = rctx->gid; }
@@ -968,30 +982,57 @@ static void ll_create(fuse_req_t req,
           fuse_req_ctx(req);
       ll_caller_uid = rctx->uid;
       ll_caller_gid = rctx->gid; }
-    dbmknod(fullpath, mode, NULL, 0);
 
-    /* Update parent mtime/ctime */
-    res = stat_inode(parent_ino, &stbuf);
-    if (res == 0) {
-        stbuf.st_ctim.tv_sec = thetime;
-        stbuf.st_ctim.tv_nsec = 0;
-        stbuf.st_mtim.tv_sec = thetime;
-        stbuf.st_mtim.tv_nsec = 0;
-        update_stat(parentpath, &stbuf);
-    }
-
-    /* Lookup the newly created file */
+    /* Check if file already exists */
     ddstat = dnode_bname_to_inode(
         &parent_ino,
         sizeof(unsigned long long),
         (char *) name);
-    s_free(fullpath);
-    s_free(parentpath);
+    if (ddstat != NULL) {
+        /* File exists */
+        if (fi->flags & O_EXCL) {
+            ddstatfree(ddstat);
+            s_free(fullpath);
+            s_free(parentpath);
+            release_global_lock();
+            fuse_reply_err(req, EEXIST);
+            return;
+        }
+        /* O_TRUNC: reset size to 0 */
+        if (fi->flags & O_TRUNC) {
+            ddstat->stbuf.st_size = 0;
+            update_stat(fullpath,
+                        &ddstat->stbuf);
+        }
+        s_free(fullpath);
+        s_free(parentpath);
+    } else {
+        /* File does not exist — create it */
+        dbmknod(fullpath, mode, NULL, 0);
 
-    if (ddstat == NULL) {
-        release_global_lock();
-        fuse_reply_err(req, EIO);
-        return;
+        /* Update parent mtime/ctime */
+        res = stat_inode(parent_ino, &stbuf);
+        if (res == 0) {
+            stbuf.st_ctim.tv_sec = thetime;
+            stbuf.st_ctim.tv_nsec = 0;
+            stbuf.st_mtim.tv_sec = thetime;
+            stbuf.st_mtim.tv_nsec = 0;
+            update_stat(parentpath, &stbuf);
+        }
+
+        /* Lookup the newly created file */
+        ddstat = dnode_bname_to_inode(
+            &parent_ino,
+            sizeof(unsigned long long),
+            (char *) name);
+        s_free(fullpath);
+        s_free(parentpath);
+
+        if (ddstat == NULL) {
+            release_global_lock();
+            fuse_reply_err(req, EIO);
+            return;
+        }
     }
 
     inode = ddstat->stbuf.st_ino;
