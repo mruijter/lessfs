@@ -3163,6 +3163,9 @@ int fs_rename_link(const char *from, const char *to, struct stat stbuf)
     dinoino.inode = stbuf.st_ino;
     btbin_write_dup(DBL, &dinoino, sizeof(DINOINO), bto, strlen(bto),
                     LOCK);
+    /* Invalidate stale p2i cache for both paths. */
+    invalidate_p2i((char *) from);
+    invalidate_p2i((char *) to);
     s_free(fromdir);
     s_free(bfrom);
     s_free(bto);
@@ -3256,6 +3259,12 @@ int fs_rename(const char *from, const char *to, struct stat stbuf)
     DATfree(dataptr);
     DATfree(ddbuf);
     ddstatfree(ddstat);
+    /* Invalidate p2i cache for both source and destination
+       paths. The earlier get_inode(to) call re-populated the
+       cache with the OLD destination inode; we must clear it
+       so subsequent lookups resolve the new mapping. */
+    invalidate_p2i((char *) from);
+    invalidate_p2i((char *) to);
     s_free(bto);
     s_free(fromdir);
     s_free(todir);

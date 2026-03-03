@@ -1042,11 +1042,12 @@ int file_unlink_file(const char *path)
     if (inobno.blocknr * BLKSIZE < st.st_size)
         inobno.blocknr++;
 
-// Start deleting the actual data blocks.
-    (void) file_fs_truncate(&st, 0, bname, 1);
 // Remove this inode from the path_to_inode cache
     LDEBUG("file_unlink_file %s haslinks =%u", path, haslinks);
     if (haslinks == 1) {
+// Start deleting the actual data blocks.
+        (void) file_fs_truncate(
+            &st, 0, bname, 1);
         if (0 !=
             (res =
              btdelete_curkey(DBDIRENT, &dirst.st_ino,
