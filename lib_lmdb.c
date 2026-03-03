@@ -851,7 +851,7 @@ DDSTAT *dnode_bname_to_inode(void *dinode, int dlen,
                        NOLOCK);
         if (NULL == statdata) {
             LINFO("Unable to find file in dbp.");
-            break;
+            continue;
         }
 #ifdef ENABLE_CRYPTO
         if (config->encryptmeta

@@ -904,6 +904,134 @@ static void ll_mknod(fuse_req_t req,
     EFUNC;
 }
 
+
+/*
+ * create — atomic mknod + open for regular files.
+ * Avoids the kernel fallback (mknod+lookup+open)
+ * and prevents EIO when stale DBDIRENT entries
+ * cause the post-mknod lookup to fail.
+ */
+static void ll_create(fuse_req_t req,
+                      fuse_ino_t parent,
+                      const char *name,
+                      mode_t mode,
+                      struct fuse_file_info *fi)
+{
+    struct fuse_entry_param entry;
+    struct stat stbuf;
+    unsigned long long parent_ino = parent;
+    unsigned long long inode;
+    DDSTAT *ddstat;
+    char *fullpath;
+    char *parentpath;
+    char *bname;
+    DAT *ddbuf;
+    const char *dataptr;
+    MEMDDSTAT *memddstat;
+    int vsize;
+    unsigned long long blocknr = 0;
+    time_t thetime;
+    int res;
+
+    FUNC;
+    if (strlen(name) > LESSFS_NAME_MAX) {
+        fuse_reply_err(req, ENAMETOOLONG);
+        return;
+    }
+    if (config->replication == 1
+        && config->replication_role == 1) {
+        fuse_reply_err(req, EPERM);
+        return;
+    }
+
+    get_global_lock(
+        (char *) __PRETTY_FUNCTION__);
+    thetime = time(NULL);
+
+    parentpath = inode_to_path(parent_ino);
+    if (parentpath == NULL) {
+        release_global_lock();
+        fuse_reply_err(req, ENOENT);
+        return;
+    }
+
+    if (strcmp(parentpath, "/") == 0)
+        fullpath = as_sprintf(
+            __FILE__, __LINE__,
+            "/%s", name);
+    else
+        fullpath = as_sprintf(
+            __FILE__, __LINE__,
+            "%s/%s", parentpath, name);
+
+    { const struct fuse_ctx *rctx =
+          fuse_req_ctx(req);
+      ll_caller_uid = rctx->uid;
+      ll_caller_gid = rctx->gid; }
+    dbmknod(fullpath, mode, NULL, 0);
+
+    /* Update parent mtime/ctime */
+    res = stat_inode(parent_ino, &stbuf);
+    if (res == 0) {
+        stbuf.st_ctim.tv_sec = thetime;
+        stbuf.st_ctim.tv_nsec = 0;
+        stbuf.st_mtim.tv_sec = thetime;
+        stbuf.st_mtim.tv_nsec = 0;
+        update_stat(parentpath, &stbuf);
+    }
+
+    /* Lookup the newly created file */
+    ddstat = dnode_bname_to_inode(
+        &parent_ino,
+        sizeof(unsigned long long),
+        (char *) name);
+    s_free(fullpath);
+    s_free(parentpath);
+
+    if (ddstat == NULL) {
+        release_global_lock();
+        fuse_reply_err(req, EIO);
+        return;
+    }
+
+    inode = ddstat->stbuf.st_ino;
+    fill_entry(&entry, &ddstat->stbuf);
+
+    /* Open: populate metatree cache */
+    fi->fh = inode;
+    bname = s_strdup(ddstat->filename);
+    ddstatfree(ddstat);
+
+    meta_lock(
+        (char *) __PRETTY_FUNCTION__);
+    blocknr--;
+    memddstat = s_malloc(sizeof(MEMDDSTAT));
+    memcpy(&memddstat->stbuf, &entry.attr,
+           sizeof(struct stat));
+    memcpy(&memddstat->filename, bname,
+           strlen(bname) + 1);
+    memddstat->blocknr = blocknr;
+    memddstat->updated = 0;
+    memddstat->real_size = 0;
+    memddstat->opened = 1;
+    memddstat->stbuf.st_atim.tv_sec =
+        time(NULL);
+    memddstat->stbuf.st_atim.tv_nsec = 0;
+    ddbuf = create_mem_ddbuf(memddstat);
+    tctreeput(metatree, &inode,
+              sizeof(unsigned long long),
+              (void *) ddbuf->data,
+              ddbuf->size);
+    DATfree(ddbuf);
+    memddstatfree(memddstat);
+    release_meta_lock();
+
+    s_free(bname);
+    release_global_lock();
+    fuse_reply_create(req, &entry, fi);
+    EFUNC;
+}
+
 /*
  * mkdir
  */
@@ -1914,6 +2042,7 @@ static struct fuse_lowlevel_ops ll_oper = {
     .setattr    = ll_setattr,
     .readlink   = ll_readlink,
     .mknod      = ll_mknod,
+    .create     = ll_create,
     .mkdir      = ll_mkdir,
     .unlink     = ll_unlink,
     .rmdir      = ll_rmdir,
