@@ -734,13 +734,15 @@ static void ll_setattr(fuse_req_t req,
         memddstat->stbuf.st_ctim.tv_sec = thetime;
         memddstat->stbuf.st_ctim.tv_nsec = 0;
         memddstat->updated = 1;
+        /* Copy stbuf BEFORE tctreeput invalidates
+           the memddstat pointer. */
+        memcpy(&stbuf, &memddstat->stbuf,
+               sizeof(struct stat));
         ddbuf = create_mem_ddbuf(memddstat);
         tctreeput(metatree, &inode,
                   sizeof(unsigned long long),
                   (void *) ddbuf->data,
                   ddbuf->size);
-        memcpy(&stbuf, &memddstat->stbuf,
-               sizeof(struct stat));
         release_meta_lock();
         DATfree(ddbuf);
     } else {

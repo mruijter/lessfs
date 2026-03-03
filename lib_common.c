@@ -164,10 +164,10 @@ void mkchunk_dir(char *path)
     if ( -1 == chdir(config->blockdata)) die_syserr();
     mkdir(path,0755);
     if ( -1 == chdir(path)) die_syserr();
-    
+
     for (n =0; n<16 ; n++)
     {
-      p[0]=a[n];        
+      p[0]=a[n];
       mkdir(p,0755);
       if ( -1 == chdir(p)) die_syserr();
       for (e=0; e<16; e++)
@@ -196,7 +196,7 @@ void mkchunk_dir(char *path)
                    }
                    if ( -1 == chdir("..")) die_syserr();
                 }
-             } 
+             }
              if ( -1 == chdir("..")) die_syserr();
           }
        }
@@ -261,7 +261,7 @@ INUSE *get_offset(unsigned long long size)
            } else {
                inuse = get_offset_reclaim(mbytes, offset);
                if (NULL == inuse) {
-                   // We failed to reclaim space. 
+                   // We failed to reclaim space.
                    // Write this last block and disable new writes
                    offset = nextoffset;
                    set_new_offset(size);
@@ -1530,7 +1530,7 @@ DAT *lfsdecompress(DAT * cdata)
         goto end;
     }
     if (decrypted->data[0] == 'S') {
-#ifdef SNAPPY 
+#ifdef SNAPPY
         data = (DAT *) lfssnappy_decompress(decrypted->data, decrypted->size);
         goto end;
 #else
@@ -1632,7 +1632,7 @@ unsigned long long readBlock(unsigned long long blocknr,
         }
         DATfree(tdata);
         data = lfsdecompress(cdata);
-        if ( NULL == data ) die_dataerr("inode %llu - %llu failed to decompress block", inobno.inode,inobno.blocknr); 
+        if ( NULL == data ) die_dataerr("inode %llu - %llu failed to decompress block", inobno.inode,inobno.blocknr);
         LDEBUG("readBlock blocknr %llu comes from db", blocknr);
         if (block_offset < data->size) {
             if (rsize > data->size - block_offset) {
@@ -1918,14 +1918,22 @@ void update_filesize(unsigned long long inode, unsigned long long fsize,
     tctreeput(metatree, &inode, sizeof(unsigned long long),
               (void *) ddbuf->data, ddbuf->size);
     DATfree(ddbuf);
+    /* Re-read pointer: tctreeput invalidated the old
+       memddstat (use-after-free fix). */
+    dataptr = tctreeget(metatree, &inode,
+        sizeof(unsigned long long), &vsize);
+    if (dataptr == NULL)
+        goto endupdate;
+    memddstat = (MEMDDSTAT *) dataptr;
     cache_p2i(memddstat->filename, &memddstat->stbuf);
 // Do not flush data until cachesize is reached
     if (memddstat->updated > config->cachesize) {
         hash_update_filesize(memddstat, inode);
         memddstat->updated = 0;
         ddbuf = create_mem_ddbuf(memddstat);
-        tctreeput(metatree, &inode, sizeof(unsigned long long),
-                  (void *) ddbuf->data, ddbuf->size);
+        tctreeput(metatree, &inode,
+            sizeof(unsigned long long),
+            (void *) ddbuf->data, ddbuf->size);
         DATfree(ddbuf);
     }
   endupdate:
@@ -2200,7 +2208,7 @@ DAT *lfscompress(unsigned char *dbdata, unsigned long dsize)
         compressed = (DAT *) clz15_compress(dbdata, dsize);
         break;
     case 'S':
-#ifdef SNAPPY 
+#ifdef SNAPPY
         compressed = (DAT *) lfssnappy_compress(dbdata, dsize);
 #else
         LFATAL("lessfs is compiled without support for SNAPPY");
@@ -2293,7 +2301,7 @@ void partial_truncate_block(unsigned long long inode,
 //---
     blockdata = s_zmalloc(BLKSIZE);
     uncompdata = lfsdecompress(data);
-    if ( NULL == uncompdata ) die_dataerr("partial_truncate_block: inode %llu - %llu failed to decompress block", inobno.inode,inobno.blocknr); 
+    if ( NULL == uncompdata ) die_dataerr("partial_truncate_block: inode %llu - %llu failed to decompress block", inobno.inode,inobno.blocknr);
     if (uncompdata->size >= offset) {
         memcpy(blockdata, uncompdata->data, offset);
     } else {
@@ -2591,7 +2599,7 @@ void cook_cache(char *key, int ksize, CCACHEDTA * ccachedta, unsigned long seque
     unsigned char *hash;
     inobno = (INOBNO *) key;
     LDEBUG("cook_cache : %llu-%llu", inobno->inode, inobno->blocknr);
-    
+
     if (config->deduplication) {
         /* Normal deduplication mode - hash content */
         hash = thash((unsigned char *) &ccachedta->data, ccachedta->datasize);
@@ -2603,11 +2611,11 @@ void cook_cache(char *key, int ksize, CCACHEDTA * ccachedta, unsigned long seque
         memcpy(&ccachedta->hash, inobno, sizeof(INOBNO));
         /* Zero out remaining hash space to maintain consistency */
         if (config->hashlen > sizeof(INOBNO)) {
-            memset(((char*)&ccachedta->hash) + sizeof(INOBNO), 0, 
+            memset(((char*)&ccachedta->hash) + sizeof(INOBNO), 0,
                    config->hashlen - sizeof(INOBNO));
         }
     }
-    
+
         fl_write_cache(ccachedta, inobno);
     return;
 }
@@ -2742,8 +2750,12 @@ void update_meta(unsigned long long inode, unsigned long size, int sign)
             } else
                 mddstat->real_size = mddstat->real_size - size;
         }
-        tctreeput(metatree, &inode, sizeof(unsigned long long),
-                  (void *) mddstat, vsize);
+        ddbuf = create_mem_ddbuf(mddstat);
+        tctreeput(metatree, &inode,
+                  sizeof(unsigned long long),
+                  (void *) ddbuf->data,
+                  ddbuf->size);
+        DATfree(ddbuf);
     }
   bailout:
     EFUNC;
@@ -3366,7 +3378,7 @@ void parseconfig(int mklessfs, bool force_optimize)
        config->chunk_depth=atoi(iv);
        if ( config->chunk_depth <= 1 ) config->chunk_depth=2;
        if ( config->chunk_depth > MAX_CHUNK_DEPTH ) {
-          LFATAL("CHUNK_DEPTH > %i, if you really want this change MAX_CHUNK_DEPTH",MAX_CHUNK_DEPTH);  
+          LFATAL("CHUNK_DEPTH > %i, if you really want this change MAX_CHUNK_DEPTH",MAX_CHUNK_DEPTH);
           config->chunk_depth=MAX_CHUNK_DEPTH;
        }
     }
@@ -3382,7 +3394,7 @@ void parseconfig(int mklessfs, bool force_optimize)
     if (iv) {
       if ( 0 == strcasecmp("medium",iv)) config->tune_for_size=LFSMEDIUM;
       if ( 0 == strcasecmp("huge",iv)) config->tune_for_size=LFSHUGE;
-    } 
+    }
     if (NULL == getenv("MIN_SPACE_CLEAN")) {
         config->nospace = 1;
         LINFO
@@ -3392,7 +3404,7 @@ void parseconfig(int mklessfs, bool force_optimize)
     iv=getenv("BDB_PRIVATE");
     if (iv) {
       if ( 0 == strcasecmp("on",iv)) config->bdb_private=1;
-    } 
+    }
     config->frozen = 0;
     config->safe_down = 0;
     config->max_backlog_size = 0;

@@ -171,9 +171,9 @@ void set_new_offset(unsigned long long size)
 
 /*
  * Enhanced hash_to_path function with better distribution for no-deduplication mode
- * 
+ *
  * In no-deduplication mode, the "hash" is actually INOBNO data (inode + blocknr) used
- * directly, which causes poor directory distribution. This function detects no-dedup 
+ * directly, which causes poor directory distribution. This function detects no-dedup
  * mode and applies better distribution logic.
  */
 
@@ -183,8 +183,8 @@ void set_new_offset(unsigned long long size)
 
 #define DIRECT_IO_ALIGNMENT 4096  /* Use 4K alignment for maximum compatibility */
 
-/* 
- * Align size to the next DIRECT_IO_ALIGNMENT boundary 
+/*
+ * Align size to the next DIRECT_IO_ALIGNMENT boundary
  * This ensures direct I/O operations work correctly
  */
 static size_t align_size_for_direct_io(size_t size) {
@@ -198,7 +198,7 @@ static size_t align_size_for_direct_io(size_t size) {
 static void* alloc_aligned_buffer(size_t size) {
     void *ptr;
     size_t aligned_size = align_size_for_direct_io(size);
-    
+
     if (posix_memalign(&ptr, DIRECT_IO_ALIGNMENT, aligned_size) != 0) {
         return NULL;
     }
@@ -215,7 +215,7 @@ static int direct_fullRead(int fd, unsigned char *buf, int len) {
     int aligned_len = align_size_for_direct_io(len);
     unsigned char *aligned_buf = NULL;
     bool need_copy = false;
-    
+
     /* Check if buffer is properly aligned */
     if (((uintptr_t)buf % DIRECT_IO_ALIGNMENT) != 0 || (len % DIRECT_IO_ALIGNMENT) != 0) {
         /* Need to use aligned buffer */
@@ -228,35 +228,35 @@ static int direct_fullRead(int fd, unsigned char *buf, int len) {
         aligned_buf = buf;
         aligned_len = len;
     }
-    
+
     for (total = 0; total < aligned_len;) {
         thistime = read(fd, aligned_buf + total, aligned_len - total);
-        
+
         if (thistime < 0) {
             if (EINTR == errno || EAGAIN == errno)
                 continue;
             if (need_copy) free(aligned_buf);
             return -1;
         }
-        
+
         if (thistime == 0)
             break;
-        
+
         total += thistime;
     }
-    
+
     /* Copy back only the requested amount if we used a temporary buffer */
     if (need_copy) {
         memcpy(buf, aligned_buf, len);
         free(aligned_buf);
     }
-    
+
     /* Return actual bytes read (original len, not aligned) */
     return (total >= len) ? len : total;
 }
 
 /*
- * Direct I/O aware fullWrite function  
+ * Direct I/O aware fullWrite function
  * Handles the alignment requirements of direct I/O
  */
 static int direct_fullWrite(int fd, unsigned char *buf, int len) {
@@ -265,7 +265,7 @@ static int direct_fullWrite(int fd, unsigned char *buf, int len) {
     int aligned_len = align_size_for_direct_io(len);
     unsigned char *aligned_buf = NULL;
     bool need_copy = false;
-    
+
     /* Check if buffer is properly aligned */
     if (((uintptr_t)buf % DIRECT_IO_ALIGNMENT) != 0 || (len % DIRECT_IO_ALIGNMENT) != 0) {
         /* Need to use aligned buffer */
@@ -281,24 +281,24 @@ static int direct_fullWrite(int fd, unsigned char *buf, int len) {
         aligned_buf = buf;
         aligned_len = len;
     }
-    
+
     for (total = 0; total < aligned_len;) {
         thistime = write(fd, aligned_buf + total, aligned_len - total);
-        
+
         if (thistime < 0) {
             if (EINTR == errno || EAGAIN == errno)
                 continue;
             if (need_copy) free(aligned_buf);
             return -1;
         }
-        
+
         total += thistime;
     }
-    
+
     if (need_copy) {
         free(aligned_buf);
     }
-    
+
     /* Return actual bytes written (original len, not aligned) */
     return (total >= aligned_len) ? len : total;
 }
@@ -309,30 +309,30 @@ char *hash_to_path(unsigned char *thehash, unsigned long long chunk_store)
     char *fullpath;
     int len;
     int d;
-    
+
     if (!config->deduplication) {
         // No-deduplication mode: Apply better distribution algorithm
         // thehash contains INOBNO data directly, not a real hash
         INOBNO *inobno = (INOBNO*)thehash;
-        
+
         // Create a well-distributed hash by combining inode and blocknr
         // using bit rotation and XOR operations for even distribution
         uint64_t distributed_key = inobno->inode ^ (inobno->blocknr << 13) ^ (inobno->blocknr >> 51);
-        
+
         // Add more entropy with additional bit operations
         distributed_key ^= (inobno->inode << 7) ^ (inobno->inode >> 57);
         distributed_key ^= (inobno->blocknr * 0x9E3779B97F4A7C15ULL); // Fibonacci hash constant
-        
-        // Convert to hex string for path generation  
+
+        // Convert to hex string for path generation
         char hex_buffer[17]; // 16 hex chars + null terminator
         snprintf(hex_buffer, sizeof(hex_buffer), "%016llX", (unsigned long long)distributed_key);
         aschash = (unsigned char*)s_strdup(hex_buffer);
-        
+
     } else {
         // Regular deduplication mode: use existing logic
         aschash = hash_to_ascii(thehash);
     }
-    
+
     // Rest of the function remains the same
     switch(chunk_store)
     {
@@ -351,14 +351,14 @@ char *hash_to_path(unsigned char *thehash, unsigned long long chunk_store)
         default:
         die_dataerr("chunk_write : Unknown prio");
     }
-    
+
     len = strlen(path);
     len++;
     for (d = 0; d < config->chunk_depth * 2; d += 2) {
        path[len + d - 1] = '/';
        path[len + d] = aschash[d/2];
     }
-    
+
     fullpath = as_sprintf(__FILE__, __LINE__, "%s/%s", path, aschash);
     s_free(aschash);
     s_free(path);
@@ -374,7 +374,7 @@ DAT *chunk_read(unsigned char *thehash,INUSE *inuse)
 
    fullpath=hash_to_path(thehash,inuse->offset);
    encrypted=s_zmalloc(sizeof(DAT));
-   
+
    /* Determine if we should use direct I/O */
    open_flags = O_RDONLY | O_NOATIME;
    if (config->direct_chunk_io && config->blockdata_io_type == CHUNK_IO) {
@@ -390,20 +390,20 @@ DAT *chunk_read(unsigned char *thehash,INUSE *inuse)
        /* Standard allocation for buffered I/O */
        encrypted->data=s_zmalloc(inuse->size);
    }
-   
+
    if (-1 == (fd = s_open2(fullpath, open_flags, S_IRWXU))) {
        die_syserr();
    }
-   
+
    /* Use appropriate read function based on I/O mode */
    if (config->direct_chunk_io && config->blockdata_io_type == CHUNK_IO) {
        encrypted->size = direct_fullRead(fd, encrypted->data, inuse->size);
    } else {
        encrypted->size = fullRead(fd, encrypted->data, inuse->size);
    }
-   
-   if ( encrypted->size != inuse->size) 
-        die_dataerr("chunk_read : unexpected short read %lu expected %lu: data corruption?", 
+
+   if ( encrypted->size != inuse->size)
+        die_dataerr("chunk_read : unexpected short read %lu expected %lu: data corruption?",
                      encrypted->size,inuse->size);
    close(fd);
    s_free(fullpath);
@@ -436,11 +436,11 @@ void chunk_write(unsigned char *thehash,DAT *compressed, unsigned long long chun
     if (config->direct_chunk_io && config->blockdata_io_type == CHUNK_IO) {
         open_flags |= O_DIRECT;
     }
-    
+
     if (-1 == (fd = s_open2(fullpath, open_flags, S_IRWXU))) {
         die_syserr();
     }
-    
+
     /* Use appropriate write function based on I/O mode */
     if (config->direct_chunk_io && config->blockdata_io_type == CHUNK_IO) {
         if (direct_fullWrite(fd, compressed->data, compressed->size) != compressed->size) {
@@ -451,7 +451,7 @@ void chunk_write(unsigned char *thehash,DAT *compressed, unsigned long long chun
     } else {
         fullWrite(fd, compressed->data, compressed->size);
     }
-    
+
     close(fd);
     s_free(fullpath);
 }
@@ -757,7 +757,7 @@ void file_delete_stored(INOBNO * inobno)
     if (NULL == inuse)
         return;
     delete_dbb(inobno);
-  
+
     if (inuse->inuse <= 1) {
         if ( config->blockdata_io_type == CHUNK_IO ) {
           chunk_delete(hash,inuse->offset);
@@ -964,7 +964,7 @@ void file_partial_truncate_block(unsigned long long inode,
     }
     LDEBUG("file_partial_truncate_block : clz_decompress");
     uncompdata = lfsdecompress(data);
-    if ( NULL == uncompdata ) die_dataerr("file_partial_truncate_block : inode %llu - %llu failed to decompress block", inobno.inode,inobno.blocknr); 
+    if ( NULL == uncompdata ) die_dataerr("file_partial_truncate_block : inode %llu - %llu failed to decompress block", inobno.inode,inobno.blocknr);
     if (uncompdata->size >= offset) {
         memcpy(blockdata, uncompdata->data, offset);
     } else {

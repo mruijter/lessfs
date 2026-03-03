@@ -659,6 +659,11 @@ void btbin_write_dup(int database, void *keydata,
     mdata.mv_size = datalen;
     /* LMDB DUPSORT databases accept dups natively */
     ret = mdb_put(write_txn, dbi, &mkey, &mdata, 0);
+    if (database == DBDIRENT && keylen == sizeof(unsigned long long) && datalen == sizeof(unsigned long long)) {
+        unsigned long long trc_key, trc_val;
+        memcpy(&trc_key, keydata, sizeof(trc_key));
+        memcpy(&trc_val, valdata, sizeof(trc_val));
+    }
     if (ret != 0) {
         mdb_txn_abort(write_txn);
         write_txn = NULL;
@@ -776,6 +781,11 @@ int btdelete_curkey(int database, void *keydata,
 
     FUNC;
     bdb_lock((char *) __PRETTY_FUNCTION__);
+    if (database == DBDIRENT && keylen == sizeof(unsigned long long) && vallen == sizeof(unsigned long long)) {
+        unsigned long long trc_key, trc_val;
+        memcpy(&trc_key, keydata, sizeof(trc_key));
+        memcpy(&trc_val, value, sizeof(trc_val));
+    }
     dbi = lmdb_set_db(database);
     mkey.mv_data = keydata;
     mkey.mv_size = keylen;
@@ -868,7 +878,9 @@ DDSTAT *dnode_bname_to_inode(void *dinode, int dlen,
                    bname, filestat->filename);
             if (0 == strcmp(bname,
                             filestat->filename))
+            {
                 break;
+            }
         } else {
             memcpy(&dinoino.dirnode, dinode,
                    sizeof(unsigned long long));
