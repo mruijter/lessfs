@@ -385,8 +385,8 @@ static void lfrb_free_subtree(
 }
 
 static void lfrb_collect_keys_inorder(
-    lfrb_node_t *node, LFLIST *list,
-    lfrb_node_t *nil)
+    const lfrb_node_t *node, LFLIST *list,
+    const lfrb_node_t *nil)
 {
     if (node == nil)
         return;
