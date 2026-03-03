@@ -63,6 +63,7 @@ typedef struct lfrb_node {
 } lfrb_node_t;
 
 typedef struct {
+    lfrb_node_t nil;    /* per-tree sentinel */
     lfrb_node_t *root;
     lfrb_node_t *cur;   /* iterator cursor */
     uint64_t rnum;      /* number of records */

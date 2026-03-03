@@ -97,12 +97,24 @@ void lflist_push(LFLIST *list,
  * ======================================
  */
 
-/* Sentinel NIL node */
-static lfrb_node_t lfrb_nil_node = {
-    NULL, 0, NULL, 0, LFRB_BLACK,
-    &lfrb_nil_node, &lfrb_nil_node, &lfrb_nil_node
-};
-#define LFRB_NIL (&lfrb_nil_node)
+/* Per-tree sentinel: each LFTREE has its own
+   nil node to avoid data races when multiple
+   trees are accessed concurrently under
+   different locks. Use TNIL(tree) macro. */
+#define TNIL(t) (&(t)->nil)
+
+static void lftree_init_nil(LFTREE *tree)
+{
+    lfrb_node_t *nil_node = &tree->nil;
+    nil_node->key = NULL;
+    nil_node->ksiz = 0;
+    nil_node->val = NULL;
+    nil_node->vsiz = 0;
+    nil_node->color = LFRB_BLACK;
+    nil_node->left = nil_node;
+    nil_node->right = nil_node;
+    nil_node->parent = nil_node;
+}
 
 static int lfrb_keycmp(const void *aptr, int asiz,
                        const void *bptr, int bsiz)
@@ -120,7 +132,8 @@ static int lfrb_keycmp(const void *aptr, int asiz,
 
 static lfrb_node_t *lfrb_node_new(
     const void *kbuf, int ksiz,
-    const void *vbuf, int vsiz)
+    const void *vbuf, int vsiz,
+    lfrb_node_t *nil)
 {
     lfrb_node_t *node = malloc(sizeof(lfrb_node_t));
     if (!node)
@@ -134,15 +147,15 @@ static lfrb_node_t *lfrb_node_new(
     node->val[vsiz] = '\0';
     node->vsiz = vsiz;
     node->color = LFRB_RED;
-    node->left = LFRB_NIL;
-    node->right = LFRB_NIL;
-    node->parent = LFRB_NIL;
+    node->left = nil;
+    node->right = nil;
+    node->parent = nil;
     return node;
 }
 
 static void lfrb_node_free(lfrb_node_t *node)
 {
-    if (node && node != LFRB_NIL) {
+    if (node) {
         free(node->key);
         free(node->val);
         free(node);
@@ -154,10 +167,10 @@ static void lfrb_rotate_left(LFTREE *tree,
 {
     lfrb_node_t *right_child = node->right;
     node->right = right_child->left;
-    if (right_child->left != LFRB_NIL)
+    if (right_child->left != TNIL(tree))
         right_child->left->parent = node;
     right_child->parent = node->parent;
-    if (node->parent == LFRB_NIL)
+    if (node->parent == TNIL(tree))
         tree->root = right_child;
     else if (node == node->parent->left)
         node->parent->left = right_child;
@@ -172,10 +185,10 @@ static void lfrb_rotate_right(LFTREE *tree,
 {
     lfrb_node_t *left_child = node->left;
     node->left = left_child->right;
-    if (left_child->right != LFRB_NIL)
+    if (left_child->right != TNIL(tree))
         left_child->right->parent = node;
     left_child->parent = node->parent;
-    if (node->parent == LFRB_NIL)
+    if (node->parent == TNIL(tree))
         tree->root = left_child;
     else if (node == node->parent->right)
         node->parent->right = left_child;
@@ -240,7 +253,7 @@ static void lfrb_transplant(LFTREE *tree,
                              lfrb_node_t *old_node,
                              lfrb_node_t *new_node)
 {
-    if (old_node->parent == LFRB_NIL)
+    if (old_node->parent == TNIL(tree))
         tree->root = new_node;
     else if (old_node == old_node->parent->left)
         old_node->parent->left = new_node;
@@ -250,9 +263,10 @@ static void lfrb_transplant(LFTREE *tree,
 }
 
 static lfrb_node_t *lfrb_minimum(
-    lfrb_node_t *node)
+    lfrb_node_t *node,
+    lfrb_node_t *nil)
 {
-    while (node->left != LFRB_NIL)
+    while (node->left != nil)
         node = node->left;
     return node;
 }
@@ -345,7 +359,7 @@ static lfrb_node_t *lfrb_find(LFTREE *tree,
                                int ksiz)
 {
     lfrb_node_t *curr = tree->root;
-    while (curr != LFRB_NIL) {
+    while (curr != TNIL(tree)) {
         int cmp = lfrb_keycmp(kbuf, ksiz,
                               curr->key,
                               curr->ksiz);
@@ -359,39 +373,45 @@ static lfrb_node_t *lfrb_find(LFTREE *tree,
     return NULL;
 }
 
-static void lfrb_free_subtree(lfrb_node_t *node)
+static void lfrb_free_subtree(
+    lfrb_node_t *node,
+    lfrb_node_t *nil)
 {
-    if (node == LFRB_NIL || node == NULL)
+    if (node == nil || node == NULL)
         return;
-    lfrb_free_subtree(node->left);
-    lfrb_free_subtree(node->right);
+    lfrb_free_subtree(node->left, nil);
+    lfrb_free_subtree(node->right, nil);
     lfrb_node_free(node);
 }
 
 static void lfrb_collect_keys_inorder(
-    lfrb_node_t *node, LFLIST *list)
+    lfrb_node_t *node, LFLIST *list,
+    lfrb_node_t *nil)
 {
-    if (node == LFRB_NIL)
+    if (node == nil)
         return;
-    lfrb_collect_keys_inorder(node->left, list);
+    lfrb_collect_keys_inorder(node->left, list,
+                              nil);
     lflist_push(list, node->key, node->ksiz);
-    lfrb_collect_keys_inorder(node->right, list);
+    lfrb_collect_keys_inorder(node->right, list,
+                              nil);
 }
 
 /* In-order successor for iteration */
 static lfrb_node_t *lfrb_successor(
-    lfrb_node_t *node)
+    lfrb_node_t *node,
+    lfrb_node_t *nil)
 {
     lfrb_node_t *parent_node;
-    if (node->right != LFRB_NIL)
-        return lfrb_minimum(node->right);
+    if (node->right != nil)
+        return lfrb_minimum(node->right, nil);
     parent_node = node->parent;
-    while (parent_node != LFRB_NIL &&
+    while (parent_node != nil &&
            node == parent_node->right) {
         node = parent_node;
         parent_node = parent_node->parent;
     }
-    if (parent_node == LFRB_NIL)
+    if (parent_node == nil)
         return NULL;
     return parent_node;
 }
@@ -405,7 +425,8 @@ LFTREE *lftree_new(void)
     LFTREE *tree = malloc(sizeof(LFTREE));
     if (!tree)
         return NULL;
-    tree->root = LFRB_NIL;
+    lftree_init_nil(tree);
+    tree->root = TNIL(tree);
     tree->cur = NULL;
     tree->rnum = 0;
     return tree;
@@ -415,7 +436,7 @@ void lftree_del(LFTREE *tree)
 {
     if (!tree)
         return;
-    lfrb_free_subtree(tree->root);
+    lfrb_free_subtree(tree->root, TNIL(tree));
     free(tree);
 }
 
@@ -423,8 +444,9 @@ void lftree_clear(LFTREE *tree)
 {
     if (!tree)
         return;
-    lfrb_free_subtree(tree->root);
-    tree->root = LFRB_NIL;
+    lfrb_free_subtree(tree->root, TNIL(tree));
+    lftree_init_nil(tree);
+    tree->root = TNIL(tree);
     tree->cur = NULL;
     tree->rnum = 0;
 }
@@ -454,13 +476,14 @@ void lftree_put(LFTREE *tree, const void *kbuf,
     }
 
     /* Insert new node */
-    node = lfrb_node_new(kbuf, ksiz, vbuf, vsiz);
+    node = lfrb_node_new(kbuf, ksiz, vbuf, vsiz,
+                         TNIL(tree));
     if (!node)
         return;
 
-    parent_node = LFRB_NIL;
+    parent_node = TNIL(tree);
     curr = tree->root;
-    while (curr != LFRB_NIL) {
+    while (curr != TNIL(tree)) {
         parent_node = curr;
         cmp = lfrb_keycmp(kbuf, ksiz,
                           curr->key, curr->ksiz);
@@ -470,7 +493,7 @@ void lftree_put(LFTREE *tree, const void *kbuf,
             curr = curr->right;
     }
     node->parent = parent_node;
-    if (parent_node == LFRB_NIL)
+    if (parent_node == TNIL(tree))
         tree->root = node;
     else if (lfrb_keycmp(kbuf, ksiz,
                          parent_node->key,
@@ -514,17 +537,19 @@ bool lftree_out(LFTREE *tree, const void *kbuf,
 
     /* Invalidate iterator if it points here */
     if (tree->cur == node)
-        tree->cur = lfrb_successor(node);
+        tree->cur = lfrb_successor(node,
+                                   TNIL(tree));
 
     orig_color = node->color;
-    if (node->left == LFRB_NIL) {
+    if (node->left == TNIL(tree)) {
         fixup_node = node->right;
         lfrb_transplant(tree, node, node->right);
-    } else if (node->right == LFRB_NIL) {
+    } else if (node->right == TNIL(tree)) {
         fixup_node = node->left;
         lfrb_transplant(tree, node, node->left);
     } else {
-        successor = lfrb_minimum(node->right);
+        successor = lfrb_minimum(node->right,
+                                 TNIL(tree));
         orig_color = successor->color;
         fixup_node = successor->right;
         if (successor->parent == node) {
@@ -559,7 +584,8 @@ LFLIST *lftree_keys(const LFTREE *tree)
     LFLIST *list = lflist_new();
     if (!list)
         return NULL;
-    lfrb_collect_keys_inorder(tree->root, list);
+    lfrb_collect_keys_inorder(tree->root, list,
+                              TNIL(tree));
     return list;
 }
 
@@ -567,11 +593,12 @@ void lftree_iterinit(LFTREE *tree)
 {
     if (!tree)
         return;
-    if (tree->root == LFRB_NIL) {
+    if (tree->root == TNIL(tree)) {
         tree->cur = NULL;
         return;
     }
-    tree->cur = lfrb_minimum(tree->root);
+    tree->cur = lfrb_minimum(tree->root,
+                             TNIL(tree));
 }
 
 const void *lftree_iternext(LFTREE *tree,
@@ -581,7 +608,8 @@ const void *lftree_iternext(LFTREE *tree,
     if (!tree || !tree->cur)
         return NULL;
     node = tree->cur;
-    tree->cur = lfrb_successor(node);
+    tree->cur = lfrb_successor(node,
+                               TNIL(tree));
     if (sp)
         *sp = node->ksiz;
     return node->key;
