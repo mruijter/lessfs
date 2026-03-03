@@ -42,7 +42,7 @@
 #include <pthread.h>
 #include <libgen.h>
 
-#include <tcutil.h>
+#include "lib_tc_replacements.h"
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>

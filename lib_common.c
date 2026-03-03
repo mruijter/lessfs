@@ -52,7 +52,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <mhash.h>
-#include <tcutil.h>
+#include "lib_tc_replacements.h"
 #include <stdlib.h>
 #include <stdbool.h>
 #include "lib_cfg.h"

@@ -1435,7 +1435,7 @@ Optional Packages:
   --with-crypto           Enable lessfs filesystem encryption.
   --with-lzo              Enable the use of LZO compression.
   --with-snappy           Enable the use of googles snappy compression.
-  --with-berkeleydb       Use berkeleydb instead of tokyocabinet.
+  --with-berkeleydb       Use berkeleydb instead of LMDB.
   --with-lmdb             Use LMDB (default if no backend specified).
 
 Some influential environment variables:
@@ -7017,19 +7017,19 @@ printf "%s\n" "no" >&6; }
 fi
 
 pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for tokyocabinet >= 1.4.21 fuse >= 2.8.0 ${MYDEPS}" >&5
-printf %s "checking for tokyocabinet >= 1.4.21 fuse >= 2.8.0 ${MYDEPS}... " >&6; }
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for fuse >= 2.8.0 ${MYDEPS}" >&5
+printf %s "checking for fuse >= 2.8.0 ${MYDEPS}... " >&6; }
 
 if test -n "$DEPS_CFLAGS"; then
     pkg_cv_DEPS_CFLAGS="$DEPS_CFLAGS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"tokyocabinet >= 1.4.21 fuse >= 2.8.0 \${MYDEPS}\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "tokyocabinet >= 1.4.21 fuse >= 2.8.0 ${MYDEPS}") 2>&5
+    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"fuse >= 2.8.0 \${MYDEPS}\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "fuse >= 2.8.0 ${MYDEPS}") 2>&5
   ac_status=$?
   printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_DEPS_CFLAGS=`$PKG_CONFIG --cflags "tokyocabinet >= 1.4.21 fuse >= 2.8.0 ${MYDEPS}" 2>/dev/null`
+  pkg_cv_DEPS_CFLAGS=`$PKG_CONFIG --cflags "fuse >= 2.8.0 ${MYDEPS}" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -7041,12 +7041,12 @@ if test -n "$DEPS_LIBS"; then
     pkg_cv_DEPS_LIBS="$DEPS_LIBS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"tokyocabinet >= 1.4.21 fuse >= 2.8.0 \${MYDEPS}\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "tokyocabinet >= 1.4.21 fuse >= 2.8.0 ${MYDEPS}") 2>&5
+    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"fuse >= 2.8.0 \${MYDEPS}\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "fuse >= 2.8.0 ${MYDEPS}") 2>&5
   ac_status=$?
   printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_DEPS_LIBS=`$PKG_CONFIG --libs "tokyocabinet >= 1.4.21 fuse >= 2.8.0 ${MYDEPS}" 2>/dev/null`
+  pkg_cv_DEPS_LIBS=`$PKG_CONFIG --libs "fuse >= 2.8.0 ${MYDEPS}" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -7067,14 +7067,14 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        DEPS_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "tokyocabinet >= 1.4.21 fuse >= 2.8.0 ${MYDEPS}" 2>&1`
+	        DEPS_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "fuse >= 2.8.0 ${MYDEPS}" 2>&1`
         else
-	        DEPS_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "tokyocabinet >= 1.4.21 fuse >= 2.8.0 ${MYDEPS}" 2>&1`
+	        DEPS_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "fuse >= 2.8.0 ${MYDEPS}" 2>&1`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$DEPS_PKG_ERRORS" >&5
 
-	as_fn_error $? "Package requirements (tokyocabinet >= 1.4.21 fuse >= 2.8.0 ${MYDEPS}) were not met:
+	as_fn_error $? "Package requirements (fuse >= 2.8.0 ${MYDEPS}) were not met:
 
 $DEPS_PKG_ERRORS
 
@@ -7106,6 +7106,96 @@ else
 printf "%s\n" "yes" >&6; }
 
 fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for compress2 in -lz" >&5
+printf %s "checking for compress2 in -lz... " >&6; }
+if test ${ac_cv_lib_z_compress2+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lz  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char compress2 ();
+int
+main (void)
+{
+return compress2 ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_z_compress2=yes
+else $as_nop
+  ac_cv_lib_z_compress2=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_z_compress2" >&5
+printf "%s\n" "$ac_cv_lib_z_compress2" >&6; }
+if test "x$ac_cv_lib_z_compress2" = xyes
+then :
+  printf "%s\n" "#define HAVE_LIBZ 1" >>confdefs.h
+
+  LIBS="-lz $LIBS"
+
+else $as_nop
+  as_fn_error $? "zlib not found" "$LINENO" 5
+fi
+
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for BZ2_bzBuffToBuffCompress in -lbz2" >&5
+printf %s "checking for BZ2_bzBuffToBuffCompress in -lbz2... " >&6; }
+if test ${ac_cv_lib_bz2_BZ2_bzBuffToBuffCompress+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lbz2  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char BZ2_bzBuffToBuffCompress ();
+int
+main (void)
+{
+return BZ2_bzBuffToBuffCompress ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_bz2_BZ2_bzBuffToBuffCompress=yes
+else $as_nop
+  ac_cv_lib_bz2_BZ2_bzBuffToBuffCompress=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_bz2_BZ2_bzBuffToBuffCompress" >&5
+printf "%s\n" "$ac_cv_lib_bz2_BZ2_bzBuffToBuffCompress" >&6; }
+if test "x$ac_cv_lib_bz2_BZ2_bzBuffToBuffCompress" = xyes
+then :
+  printf "%s\n" "#define HAVE_LIBBZ2 1" >>confdefs.h
+
+  LIBS="-lbz2 $LIBS"
+
+else $as_nop
+  as_fn_error $? "libbz2 not found" "$LINENO" 5
+fi
+
 ac_config_files="$ac_config_files Makefile"
 
 cat >confcache <<\_ACEOF

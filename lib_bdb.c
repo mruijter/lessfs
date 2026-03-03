@@ -44,7 +44,7 @@
 #include <fuse.h>
 #include <fcntl.h>
 #include <pthread.h>
-#include <tcutil.h>
+#include "lib_tc_replacements.h"
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>

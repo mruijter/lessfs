@@ -38,7 +38,7 @@
 #include <pthread.h>
 #include <fuse.h>
 
-#include <tcutil.h>
+#include "lib_tc_replacements.h"
 #include <stdlib.h>
 #include <stdbool.h>
 

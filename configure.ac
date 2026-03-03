@@ -108,11 +108,11 @@ AC_ARG_WITH(snappy,
 
 BERKELEYDB_MSG="no"
 AC_ARG_WITH(berkeleydb,
-        [  --with-berkeleydb       Use berkeleydb instead of tokyocabinet.],
+        [  --with-berkeleydb       Use berkeleydb instead of LMDB.],
         [
                 if test "x$withval" != "xno" ; then
                         AC_DEFINE(BERKELEYDB, 1,
-                                [Define if you want to use berkeleydb instead of tokyocabinet])
+                                [Define if you want to use berkeleydb instead of LMDB])
                         BERKELEYDB_LIBS="$LIBS -ldb"
                         EXTRAFILES=lib_bdb.c
                         AC_CHECK_HEADERS(db.h, [], [], [
@@ -209,6 +209,8 @@ AC_SUBST(LZO_LIBS)
 AC_SUBST(SNAPPY_LIBS)
 AC_SUBST(BERKELEYDB_LIBS)
 AC_SUBST(LMDB_LIBS)
-PKG_CHECK_MODULES(DEPS, tokyocabinet >= 1.4.21 fuse >= 2.8.0 ${MYDEPS})
+PKG_CHECK_MODULES(DEPS, fuse >= 2.8.0 ${MYDEPS})
+AC_CHECK_LIB(z, compress2, [], [AC_MSG_ERROR([zlib not found])])
+AC_CHECK_LIB(bz2, BZ2_bzBuffToBuffCompress, [], [AC_MSG_ERROR([libbz2 not found])])
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

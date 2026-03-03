@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <tcutil.h>
+#include "lib_tc_replacements.h"
 #include <stdbool.h>
 #include "lib_log.h"
 #include "lib_safe.h"

@@ -50,7 +50,7 @@
 #include "lib_net.h"
 
 #ifdef MEMTRACE
-#include <tcutil.h>
+#include "lib_tc_replacements.h"
 static pthread_mutex_t mem_mutex = PTHREAD_MUTEX_INITIALIZER;
 TCTREE *memtracetree = NULL;
 #endif
