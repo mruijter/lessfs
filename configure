@@ -6296,12 +6296,6 @@ then :
   printf "%s\n" "#define HAVE_STRSTR 1" >>confdefs.h
 
 fi
-ac_fn_c_check_func "$LINENO" "mhash_init" "ac_cv_func_mhash_init"
-if test "x$ac_cv_func_mhash_init" = xyes
-then :
-  printf "%s\n" "#define HAVE_MHASH_INIT 1" >>confdefs.h
-
-fi
 
 
 ac_fn_c_check_header_compile "$LINENO" "sys/vfs.h" "ac_cv_header_sys_vfs_h" "$ac_includes_default"
@@ -6418,26 +6412,11 @@ then :
   printf "%s\n" "#define HAVE_UTIME_H 1" >>confdefs.h
 
 fi
-ac_fn_c_check_header_compile "$LINENO" "mhash.h" "ac_cv_header_mhash_h" "$ac_includes_default"
-if test "x$ac_cv_header_mhash_h" = xyes
-then :
-  printf "%s\n" "#define HAVE_MHASH_H 1" >>confdefs.h
-
-fi
 
 # Check whether to enable filesystem encryption
-CRYPTO_LIBS="$LIBS -lmhash -lpthread"
+CRYPTO_LIBS="$LIBS -lpthread"
 CRYPTO_MSG="no"
 
-
-ac_fn_c_check_header_compile "$LINENO" "mhash.h" "ac_cv_header_mhash_h" "$ac_includes_default"
-if test "x$ac_cv_header_mhash_h" = xyes
-then :
-  printf "%s\n" "#define HAVE_MHASH_H 1" >>confdefs.h
-
-else $as_nop
-  as_fn_error $? "Please install mhash" "$LINENO" 5
-fi
 
 
 
@@ -6450,7 +6429,7 @@ then :
 
 printf "%s\n" "#define ENABLE_CRYPTO 1" >>confdefs.h
 
-			CRYPTO_LIBS="$LIBS -lssl -lmhash"
+			CRYPTO_LIBS="$LIBS -lssl"
                         CRYPTO_MSG="yes"
 			ac_fn_c_check_header_compile "$LINENO" "openssl/ssl.h" "ac_cv_header_openssl_ssl_h" "
 

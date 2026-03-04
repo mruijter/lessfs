@@ -43,7 +43,6 @@ struct configdata {
     unsigned int relax;
     unsigned int encryptdata;
     unsigned int encryptmeta;
-    unsigned int selected_hash;
     int hashlen;
     int transactions;
     int replication;

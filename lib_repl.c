@@ -26,10 +26,9 @@
 #include "lib_tc_replacements.h"
 #include <stdlib.h>
 #include <stdbool.h>
+#include "blake3.h"
 #include <stdint.h>
 #include <aio.h>
-#include <mhash.h>
-#include <mutils/mhash.h>
 #include <sys/types.h>
 #include <dirent.h>
 
@@ -69,15 +68,13 @@ extern unsigned long long nextoffset;
 unsigned char *crc32(unsigned char *buf, int size,
                      int thread_number)
 {
-    MHASH td;
-    unsigned char *hash;
-
-    td = mhash_init(MHASH_CRC32);
-    if (td == MHASH_FAILED)
-        exit(1);
-
-    mhash(td, buf, size);
-    hash = mhash_end(td);
+    unsigned char full_hash[BLAKE3_OUT_LEN];
+    unsigned char *hash = malloc(4);
+    blake3_hasher hasher;
+    blake3_hasher_init(&hasher);
+    blake3_hasher_update(&hasher, buf, size);
+    blake3_hasher_finalize(&hasher, full_hash, BLAKE3_OUT_LEN);
+    memcpy(hash, full_hash, 4);
     return hash;
 }
 

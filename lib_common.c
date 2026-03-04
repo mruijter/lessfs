@@ -51,7 +51,7 @@
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <mhash.h>
+#include "blake3.h"
 #include "lib_tc_replacements.h"
 #include <stdlib.h>
 #include <stdbool.h>
@@ -207,17 +207,14 @@ void mkchunk_dir(char *path)
 
 unsigned char *thash(unsigned char *buf, int size)
 {
-    MHASH td;
-    unsigned char *hash;
-
-    td = mhash_init(config->selected_hash);
-    if (td == MHASH_FAILED)
-        exit(1);
-
-    mhash(td, buf, size);
-    hash = mhash_end(td);
+    unsigned char *hash = s_malloc(BLAKE3_OUT_LEN);
+    blake3_hasher hasher;
+    blake3_hasher_init(&hasher);
+    blake3_hasher_update(&hasher, buf, size);
+    blake3_hasher_finalize(&hasher, hash, BLAKE3_OUT_LEN);
     return hash;
 }
+
 
 void check_datafile_sanity()
 {
@@ -3500,9 +3497,8 @@ void parseconfig(int mklessfs, bool force_optimize)
 
     config->encryptdata = 0;
     config->encryptmeta = 1;
-    config->hashlen = 24;
-    config->hash = "MHASH_TIGER192";
-    config->selected_hash = MHASH_TIGER192;
+    config->hashlen = BLAKE3_OUT_LEN;
+    config->hash = "BLAKE3";
     config->compression = 'Q';
     config->deduplication = 1;    // Enable deduplication by default
 //  Background delete is now enabled by default
@@ -3572,51 +3568,7 @@ void parseconfig(int mklessfs, bool force_optimize)
             }
         }
     }
-    iv = getenv("HASHNAME");
-    if (iv) {
-        config->hash = iv;
-        if (0 == strcmp("MHASH_SHA256", iv)) {
-            config->selected_hash = MHASH_SHA256;
-            LINFO("Hash SHA256 has been selected");
-        }
-        if (0 == strcmp("MHASH_SHA512", iv)) {
-            config->selected_hash = MHASH_SHA512;
-            LINFO("Hash SHA512 has been selected");
-        }
-        if (0 == strcmp("MHASH_WHIRLPOOL", iv)) {
-            config->selected_hash = MHASH_WHIRLPOOL;
-            LINFO("Hash WHIRLPOOL has been selected");
-        }
-        if (0 == strcmp("MHASH_HAVAL256", iv)) {
-            config->selected_hash = MHASH_HAVAL256;
-            LINFO("Hash HAVAL has been selected");
-        }
-        if (0 == strcmp("MHASH_SNEFRU256", iv)) {
-            config->selected_hash = MHASH_SNEFRU256;
-            LINFO("Hash SNEFRU has been selected");
-        }
-        if (0 == strcmp("MHASH_RIPEMD256", iv)) {
-            config->selected_hash = MHASH_RIPEMD256;
-            LINFO("Hash RIPEMD256 has been selected");
-        }
-        if (config->selected_hash == MHASH_TIGER192)
-            LINFO("Hash MHASH_TIGER192 has been selected");
-    } else
-        LINFO("Hash MHASH_TIGER192 been selected");
-    iv = getenv("HASHLEN");
-    if (iv) {
-        if (atoi(iv) >= 20 && atoi(iv) <= MAX_HASH_LEN) {
-            if (atoi(iv) > 24 && config->selected_hash == MHASH_TIGER192) {
-                die_dataerr
-                    ("MHASH_TIGER192 can not be used with MAX_HASH_LEN > 24");
-            }
-            config->hashlen = atoi(iv);
-        } else {
-            LFATAL("The hash length is invalid.");
-            exit(EXIT_USAGE);
-        }
-    }
-    LINFO("Lessfs uses a %i bytes long hash.", config->hashlen);
+    LINFO("Lessfs uses BLAKE3 with a %i bytes long hash.", config->hashlen);
     iv = getenv("SYNC_RELAX");
     if (NULL == iv) {
         config->relax = 0;

@@ -1,9 +1,9 @@
 # Enable informational messages about compression.
 DEBUG = 5
-HASHNAME=MHASH_TIGER192
-#HASHNAME=MHASH_SHA256
+HASHNAME=BLAKE3
+#HASHNAME=BLAKE3
 # The (chopped) hashlen in bytes, minimum is 20.
-HASHLEN = 24
+HASHLEN = 32
 #BLOCKDATA_IO_TYPE=file_io
 #BLOCKDATA_PATH=/data/slave/dta/blockdata.dta
 BLOCKDATA_PATH=/data/slave/dta

@@ -28,7 +28,6 @@
 typedef unsigned long long int word64;
 typedef unsigned long word32;
 typedef unsigned char byte;
-void tiger(byte *, word64, word64 *);
 
 enum IOTYPE {FILE_IO,MULTIFILE_IO,CHUNK_IO};
 

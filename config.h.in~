@@ -1,6 +1,6 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* Define if you want to use berkeleydb instead of tokyocabinet */
+/* Define if you want to use berkeleydb instead of LMDB */
 #undef BERKELEYDB
 
 /* Define to 1 if the `closedir' function returns void instead of int. */
@@ -58,6 +58,12 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define to 1 if you have the `bz2' library (-lbz2). */
+#undef HAVE_LIBBZ2
+
+/* Define to 1 if you have the `z' library (-lz). */
+#undef HAVE_LIBZ
+
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
 
@@ -83,11 +89,6 @@
 /* Define to 1 if you have the `memset' function. */
 #undef HAVE_MEMSET
 
-/* Define to 1 if you have the <mhash.h> header file. */
-#undef HAVE_MHASH_H
-
-/* Define to 1 if you have the `mhash_init' function. */
-#undef HAVE_MHASH_INIT
 
 /* Define to 1 if you have the `mkdir' function. */
 #undef HAVE_MKDIR

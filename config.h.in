@@ -89,12 +89,6 @@
 /* Define to 1 if you have the `memset' function. */
 #undef HAVE_MEMSET
 
-/* Define to 1 if you have the <mhash.h> header file. */
-#undef HAVE_MHASH_H
-
-/* Define to 1 if you have the `mhash_init' function. */
-#undef HAVE_MHASH_INIT
-
 /* Define to 1 if you have the `mkdir' function. */
 #undef HAVE_MKDIR
 

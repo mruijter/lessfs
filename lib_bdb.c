@@ -52,8 +52,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <mhash.h>
-#include <mutils/mhash.h>
 
 #include "lib_safe.h"
 #include "lib_cfg.h"

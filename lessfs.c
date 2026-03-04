@@ -55,7 +55,6 @@
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <mhash.h>
 #include "lib_tc_replacements.h"
 #include <stdlib.h>
 #include <stdbool.h>

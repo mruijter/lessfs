@@ -14,11 +14,11 @@ lessfs - An inline data deduplicating filesystem
 .SH VERSION
 This man page documents lessfs version 1.7.0 (with no-deduplication mode support)
 .SH DESCRIPTION
-\fBlessfs\fR is a filesystem that optionally performs inline data deduplication. lessfs uses the 192-bit (24-byte) tiger hash algorithm by default to compare the data. The filesystem compresses the unique data blocks before writing them to disk.
+\fBlessfs\fR is a filesystem that optionally performs inline data deduplication. lessfs uses the BLAKE3 hash algorithm (32 bytes) to compare the data. The filesystem compresses the unique data blocks before writing them to disk.
 .br
 Lessfs supports a large number of compression protocols. See COMPRESSION for details.
 .br
-Lessfs 1.1 also supports a wide range of hashes to choose from with hash lenghts ranging from 192 to 512 bit. See HASHNAME for details.
+Lessfs uses BLAKE3 exclusively as its hash algorithm with a fixed 32-byte output.
 \FB\
 .PP
 .SS OPTIONS
@@ -127,7 +127,7 @@ The bucketsize of the dirent database. See BLOCKDATA_BS.
 Example: DIRENT_BS=1048576
 .fi
 .IP "FILEBLOCK_PATH"
-The path to the directory that holds the database that contains the tigerhash of the inode-blocknr combination. The data that belongs to the hash can be found in the BLOCKDATA database.
+The path to the directory that holds the database that contains the BLAKE3 hash of the inode-blocknr combination. The data that belongs to the hash can be found in the BLOCKDATA database.
 .IP "FILEBLOCK_BS"
 The bucketsize of the fileblock database. See BLOCKDATA_BS.
 Example: FILEBLOCK_BS=10485760
@@ -157,7 +157,7 @@ Specifies the minimum percentage or free space that has to be available. Lessfs 
 .IP MIN_SPACE_CLEAN=25
 When MIN_SPACE_CLEAN is configured the program specified by CLEAN_PROGRAM will be executed. This program/script can be used to warn the administator or automatically delete old files. Please note that when CLEAN_PROGRAM is used with the file_io backend deleting files from lessfs will not free disk space on the underlying filesystem since file_io only marks deleted blocks as free in the freelist database.
 .IP CLEAN_PROGRAM=/usr/local/bin/warn_me.sh
-.IP HASHLEN = 24
+.IP HASHLEN = 32
 The lenght of the hash that identifies the blocks of data measured in bytes. Minimum 20, maximum 32.
 .br
 The default value is 24 (192 bits).
@@ -210,8 +210,8 @@ Enable or disable block-level deduplication. When enabled (default), lessfs perf
 Valid options are: on (default) or off, disabled
 .br
 Disabling deduplication provides 50-80% CPU reduction during write operations and higher throughput for workloads with unique data. Use \fBDEDUPLICATION=off\fR for high-performance scenarios where speed is more important than storage efficiency.
-.IP HASHNAME=TIGER192
-Lessfs supports the following hashes: MHASH_SHA256, MHASH_SHA512, MHASH_WHIRLPOOL, MHASH_HAVAL256, MHASH_SNEFRU256, MHASH_RIPEMD256 and TIGER192. The tiger hash is used by default. The hash lenght can be anything between 24 and 64 bytes. Unlike the compression protocol, the hash and hash lenght can not be changed after formatting the filesystem.
+.IP HASHNAME=BLAKE3
+Lessfs uses BLAKE3 exclusively with a fixed 32-byte hash length. Unlike the compression protocol, the hash can not be changed after formatting the filesystem.
 .IP BLKSIZE=131072
 When BLKSIZE is specified in the configuration file lessfs can be mounted without specifying options. In this case lessfs will use a number of default options that make sense in most cases. If you would like to specify the options yourself then remove this line from the configuration.
 .br
