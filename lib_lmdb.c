@@ -63,19 +63,25 @@
 #include "lib_lmdb.h"
 
 
-/* LMDB environment and database handles */
-MDB_env *lmdb_env;
-MDB_dbi dbi_dbb;      /* fileblock */
-MDB_dbi dbi_dbu;      /* blockusage */
-MDB_dbi dbi_dbp;      /* metadata */
-MDB_dbi dbi_dbl;      /* hardlink */
-MDB_dbi dbi_dbs;      /* symlink */
-MDB_dbi dbi_dbdta;    /* blockdata (unused with file_io) */
-MDB_dbi dbi_dbdirent; /* directory entries */
-MDB_dbi dbi_freelist; /* freelist */
+/* Max shard count; valid lmdb_db_count values:
+ * 1, 2, 4, 8, 16 */
+#define LMDB_MAX_SHARDS 16
 
-/* Write transaction - single writer model */
-MDB_txn *write_txn;
+/* Per-shard LMDB handles */
+static MDB_env *lmdb_env[LMDB_MAX_SHARDS];
+static MDB_dbi dbi_dbb[LMDB_MAX_SHARDS];      /* fileblock */
+static MDB_dbi dbi_dbu[LMDB_MAX_SHARDS];      /* blockusage */
+static MDB_dbi dbi_dbp[LMDB_MAX_SHARDS];      /* metadata */
+static MDB_dbi dbi_dbl[LMDB_MAX_SHARDS];      /* hardlink */
+static MDB_dbi dbi_dbs[LMDB_MAX_SHARDS];      /* symlink */
+static MDB_dbi dbi_dbdta[LMDB_MAX_SHARDS];    /* blockdata */
+static MDB_dbi dbi_dbdirent[LMDB_MAX_SHARDS]; /* dirent */
+static MDB_dbi dbi_freelist[LMDB_MAX_SHARDS]; /* freelist */
+
+/* Per-shard write transactions and mutexes */
+static MDB_txn *write_txn[LMDB_MAX_SHARDS];
+static pthread_mutex_t lmdb_mutex[LMDB_MAX_SHARDS];
+static const char *lmdb_lockedby[LMDB_MAX_SHARDS];
 
 int fdbdta;
 int frepl = 0;
@@ -84,150 +90,321 @@ extern unsigned long long nextoffset;
 unsigned long long lastoffset;
 const char *bdb_lockedby;
 
-static pthread_mutex_t lmdb_mutex = PTHREAD_MUTEX_INITIALIZER;
-static const char *lmdb_lockedby = NULL;
-
 #define die_lmdberr(fmt, ...) \
     do { LFATAL(fmt, ##__VA_ARGS__); exit(EXIT_DATAERR); \
     } while (0)
 
 /*
- * Return the MDB_dbi handle for the given database
- * selector constant.
+ * Return the MDB_dbi handle for the given
+ * shard and database selector constant.
  */
-static MDB_dbi lmdb_set_db(int database)
+static MDB_dbi lmdb_set_db(int shard, int database)
 {
     switch (database) {
     case 0: /* DBDTA */
-        return dbi_dbdta;
+        return dbi_dbdta[shard];
     case 1: /* DBU */
-        return dbi_dbu;
+        return dbi_dbu[shard];
     case 2: /* DBB */
-        return dbi_dbb;
+        return dbi_dbb[shard];
     case 3: /* DBP */
-        return dbi_dbp;
+        return dbi_dbp[shard];
     case 4: /* DBS */
-        return dbi_dbs;
+        return dbi_dbs[shard];
     case 5: /* DBL */
-        return dbi_dbl;
+        return dbi_dbl[shard];
     case 6: /* FREELIST */
-        return dbi_freelist;
+        return dbi_freelist[shard];
     case 7: /* DBDIRENT */
-        return dbi_dbdirent;
+        return dbi_dbdirent[shard];
     default:
-        die_lmdberr("lmdb_set_db: invalid database %d",
-                     database);
+        die_lmdberr(
+            "lmdb_set_db: invalid database %d",
+            database);
     }
-    return dbi_dbp; /* not reached */
+    return dbi_dbp[shard]; /* not reached */
+}
+
+/*
+ * inode_to_shard: map an inode to its shard index.
+ * Uses the last nibble of the inode and the
+ * configured shard count.
+ */
+int inode_to_shard(unsigned long long inode)
+{
+    if (config->lmdb_db_count <= 1)
+        return 0;
+    return (int)((inode & 0xf)
+                 / (16 / config->lmdb_db_count));
+}
+
+/*
+ * shard_path: return path for shard s.
+ * N=1 -> config->meta unchanged.
+ * N>1 -> <meta>/db_XX  (zero-padded hex).
+ * Caller must s_free() the result.
+ */
+static char *shard_path(int shard)
+{
+    if (config->lmdb_db_count <= 1)
+        return s_strdup(config->meta);
+    return as_sprintf(__FILE__, __LINE__,
+                      "%s/db_%02x",
+                      config->meta, shard);
+}
+
+/*
+ * dbp_get_within_lock: read DBP for inode while
+ * write_txn[held_shard] is open.
+ * Same shard -> use held write_txn directly.
+ * Cross-shard -> open a brief MDB_RDONLY txn.
+ */
+static DAT *dbp_get_within_lock(
+    unsigned long long inode, int held_shard)
+{
+    int shard = inode_to_shard(inode);
+    MDB_txn *txn;
+    MDB_txn *rtxn = NULL;
+    MDB_val mkey, mdata;
+    DAT *result = NULL;
+    int ret;
+
+    if (shard == held_shard) {
+        txn = write_txn[shard];
+    } else {
+        ret = mdb_txn_begin(lmdb_env[shard], NULL,
+                            MDB_RDONLY, &rtxn);
+        if (ret != 0)
+            return NULL;
+        txn = rtxn;
+    }
+    mkey.mv_data = &inode;
+    mkey.mv_size = sizeof(unsigned long long);
+    ret = mdb_get(txn, dbi_dbp[shard],
+                  &mkey, &mdata);
+    if (ret == 0) {
+        result = s_malloc(sizeof(DAT));
+        result->data = s_malloc(mdata.mv_size);
+        memcpy(result->data, mdata.mv_data,
+               mdata.mv_size);
+        result->size = mdata.mv_size;
+    }
+    if (rtxn)
+        mdb_txn_abort(rtxn);
+    return result;
+}
+
+/*
+ * dbl_keyval_within_lock: search DBL for key+val
+ * while write_txn[held_shard] is open.
+ */
+static DAT *dbl_keyval_within_lock(
+    unsigned long long inode, int held_shard,
+    void *keydata, int keylen,
+    void *val, int vallen)
+{
+    int shard = inode_to_shard(inode);
+    MDB_txn *txn;
+    MDB_txn *rtxn = NULL;
+    MDB_cursor *cur;
+    MDB_val mkey, mdata;
+    DAT *result = NULL;
+    int ret;
+
+    if (shard == held_shard) {
+        txn = write_txn[shard];
+    } else {
+        ret = mdb_txn_begin(lmdb_env[shard], NULL,
+                            MDB_RDONLY, &rtxn);
+        if (ret != 0)
+            return NULL;
+        txn = rtxn;
+    }
+    ret = mdb_cursor_open(txn,
+                          dbi_dbl[shard], &cur);
+    if (ret != 0) {
+        if (rtxn)
+            mdb_txn_abort(rtxn);
+        return NULL;
+    }
+    mkey.mv_data = keydata;
+    mkey.mv_size = keylen;
+    mdata.mv_data = val;
+    mdata.mv_size = vallen;
+    if (val == NULL || vallen == 0) {
+        ret = mdb_cursor_get(cur, &mkey, &mdata,
+                             MDB_SET_KEY);
+    } else {
+        ret = mdb_cursor_get(cur, &mkey, &mdata,
+                             MDB_GET_BOTH_RANGE);
+    }
+    if (ret == 0) {
+        if (vallen == 0
+                || (mdata.mv_size >= (size_t)vallen
+                    && 0 == memcmp(mdata.mv_data,
+                                   val, vallen))) {
+            result = s_malloc(sizeof(DAT));
+            result->data =
+                s_malloc(mdata.mv_size);
+            memcpy(result->data, mdata.mv_data,
+                   mdata.mv_size);
+            result->size = mdata.mv_size;
+        }
+    }
+    mdb_cursor_close(cur);
+    if (rtxn)
+        mdb_txn_abort(rtxn);
+    return result;
+}
+
+/*
+ * bdb_lock_shard / release_bdb_lock_shard:
+ * acquire/release write lock for a specific shard.
+ */
+void bdb_lock_shard(int shard, const char *msg)
+{
+    int ret;
+    pthread_mutex_lock(&lmdb_mutex[shard]);
+    lmdb_lockedby[shard] = msg;
+    ret = mdb_txn_begin(lmdb_env[shard], NULL, 0,
+                        &write_txn[shard]);
+    if (ret != 0)
+        die_lmdberr(
+            "bdb_lock_shard txn_begin: %s",
+            mdb_strerror(ret));
+}
+
+void release_bdb_lock_shard(int shard)
+{
+    if (write_txn[shard]) {
+        int ret = mdb_txn_commit(write_txn[shard]);
+        write_txn[shard] = NULL;
+        if (ret != 0)
+            die_lmdberr(
+                "release_bdb_lock_shard commit: "
+                "%s", mdb_strerror(ret));
+    }
+    lmdb_lockedby[shard] = NULL;
+    pthread_mutex_unlock(&lmdb_mutex[shard]);
 }
 
 void bdb_lock(const char *msg)
 {
-    int ret;
-    pthread_mutex_lock(&lmdb_mutex);
-    lmdb_lockedby = msg;
-    ret = mdb_txn_begin(lmdb_env, NULL, 0, &write_txn);
-    if (ret != 0)
-        die_lmdberr("bdb_lock txn_begin: %s",
-                     mdb_strerror(ret));
+    bdb_lock_shard(0, msg);
 }
 
 int try_bdb_lock(void)
 {
-    int ret = pthread_mutex_trylock(&lmdb_mutex);
+    int ret = pthread_mutex_trylock(
+                  &lmdb_mutex[0]);
     if (ret == 0) {
         int txret;
-        lmdb_lockedby = "try_bdb_lock";
-        txret = mdb_txn_begin(lmdb_env, NULL, 0,
-                               &write_txn);
+        lmdb_lockedby[0] = "try_bdb_lock";
+        txret = mdb_txn_begin(lmdb_env[0], NULL, 0,
+                               &write_txn[0]);
         if (txret != 0)
-            die_lmdberr("try_bdb_lock txn_begin: %s",
-                         mdb_strerror(txret));
+            die_lmdberr(
+                "try_bdb_lock txn_begin: %s",
+                mdb_strerror(txret));
     }
     return ret;
 }
 
 void release_bdb_lock(void)
 {
-    if (write_txn) {
-        int ret = mdb_txn_commit(write_txn);
-        write_txn = NULL;
-        if (ret != 0)
-            die_lmdberr(
-                "release_bdb_lock commit: %s",
-                mdb_strerror(ret));
-    }
-    lmdb_lockedby = NULL;
-    pthread_mutex_unlock(&lmdb_mutex);
+    release_bdb_lock_shard(0);
 }
 
 void bdb_checkpoint(void)
 {
-    /* LMDB has no explicit checkpoint; sync env */
-    mdb_env_sync(lmdb_env, 1);
+    int shard;
+    for (shard = 0;
+         shard < config->lmdb_db_count; shard++)
+        mdb_env_sync(lmdb_env[shard], 1);
 }
 
 void bdb_stat(void)
 {
-    MDB_stat stat;
-    if (0 == mdb_env_stat(lmdb_env, &stat)) {
-        LINFO("LMDB page_size=%u depth=%u "
-              "branch=%zu leaf=%zu overflow=%zu "
-              "entries=%zu",
-              stat.ms_psize, stat.ms_depth,
-              stat.ms_branch_pages, stat.ms_leaf_pages,
-              stat.ms_overflow_pages, stat.ms_entries);
+    MDB_stat mdbstat;
+    int shard;
+    for (shard = 0;
+         shard < config->lmdb_db_count; shard++) {
+        if (0 == mdb_env_stat(lmdb_env[shard],
+                              &mdbstat)) {
+            LINFO("LMDB shard %d: "
+                  "page_size=%u depth=%u "
+                  "branch=%zu leaf=%zu "
+                  "overflow=%zu entries=%zu",
+                  shard, mdbstat.ms_psize,
+                  mdbstat.ms_depth,
+                  mdbstat.ms_branch_pages,
+                  mdbstat.ms_leaf_pages,
+                  mdbstat.ms_overflow_pages,
+                  mdbstat.ms_entries);
+        }
     }
 }
 
 void start_transactions(void)
 {
-    int ret;
+    int ret, shard;
     FUNC;
-    ret = mdb_txn_begin(lmdb_env, NULL, 0, &write_txn);
-    if (ret != 0)
-        die_lmdberr("txn_begin failed: %s",
-                     mdb_strerror(ret));
+    for (shard = 0;
+         shard < config->lmdb_db_count; shard++) {
+        ret = mdb_txn_begin(
+            lmdb_env[shard], NULL, 0,
+            &write_txn[shard]);
+        if (ret != 0)
+            die_lmdberr(
+                "txn_begin shard %d failed: %s",
+                shard, mdb_strerror(ret));
+    }
     EFUNC;
 }
 
 void commit_transactions(void)
 {
-    int ret;
+    int ret, shard;
     FUNC;
-    ret = mdb_txn_commit(write_txn);
-    write_txn = NULL;
-    if (ret != 0)
-        die_lmdberr("txn_commit failed: %s",
-                     mdb_strerror(ret));
+    for (shard = 0;
+         shard < config->lmdb_db_count; shard++) {
+        ret = mdb_txn_commit(write_txn[shard]);
+        write_txn[shard] = NULL;
+        if (ret != 0)
+            die_lmdberr(
+                "txn_commit shard %d failed: %s",
+                shard, mdb_strerror(ret));
+    }
     EFUNC;
 }
 
 void abort_transactions(void)
 {
+    int shard;
     FUNC;
-    if (write_txn) {
-        mdb_txn_abort(write_txn);
-        write_txn = NULL;
+    for (shard = 0;
+         shard < config->lmdb_db_count; shard++) {
+        if (write_txn[shard]) {
+            mdb_txn_abort(write_txn[shard]);
+            write_txn[shard] = NULL;
+        }
     }
-    /* Per-lock txns: no need to restart;
-       release_bdb_lock handles NULL write_txn */
     EFUNC;
 }
 
 void bdb_open(void)
 {
-    int ret;
+    int ret, shard;
     struct stat stbuf;
     char *hashstr;
     DAT *data;
-    char *sp, *dbname;
+    char *sp, *dbname, *path;
     unsigned int db_flags;
     unsigned long long mapsize;
 
     FUNC;
 
-    /* Set up replication log file - same as BDB */
+    /* Replication log file setup */
     if (config->blockdata_io_type == FILE_IO) {
         sp = s_dirname(config->blockdata);
     } else {
@@ -240,9 +417,9 @@ void bdb_open(void)
             O_CREAT | O_RDWR | O_NOATIME, S_IRWXU)))
         die_syserr();
     if (0 != flock(frepl, LOCK_EX | LOCK_NB)) {
-        LFATAL("Failed to lock the replication logfile"
-               " %s\nlessfs must be unmounted before"
-               " using this option!",
+        LFATAL("Failed to lock the replication "
+               "logfile %s\nlessfs must be unmounted"
+               " before using this option!",
                config->replication_logfile);
         exit(EXIT_USAGE);
     }
@@ -255,110 +432,144 @@ void bdb_open(void)
     s_free(dbname);
     s_free(sp);
 
-    /* Create LMDB environment */
-    LDEBUG("Open LMDB environment: %s", config->meta);
-    ret = mdb_env_create(&lmdb_env);
-    if (ret != 0)
-        die_lmdberr("mdb_env_create: %s",
-                     mdb_strerror(ret));
-
-    /* Allow 8 named databases */
-    ret = mdb_env_set_maxdbs(lmdb_env, 8);
-    if (ret != 0)
-        die_lmdberr("mdb_env_set_maxdbs: %s",
-                     mdb_strerror(ret));
-
-    /* Set map size */
     mapsize = config->lmdb_mapsize
               ? config->lmdb_mapsize
               : LMDB_DEFAULT_MAPSIZE;
-    ret = mdb_env_set_mapsize(lmdb_env, mapsize);
-    if (ret != 0)
-        die_lmdberr("mdb_env_set_mapsize: %s",
-                     mdb_strerror(ret));
-
-    /* Open environment */
-    ret = mdb_env_open(lmdb_env, config->meta,
-                       MDB_NOSYNC | MDB_WRITEMAP, 0644);
-    if (ret != 0)
-        die_lmdberr("mdb_env_open(%s): %s",
-                     config->meta, mdb_strerror(ret));
-
-    /* Start initial transaction to open databases */
-    ret = mdb_txn_begin(lmdb_env, NULL, 0, &write_txn);
-    if (ret != 0)
-        die_lmdberr("initial txn_begin: %s",
-                     mdb_strerror(ret));
-
     db_flags = MDB_CREATE;
 
-    ret = mdb_dbi_open(write_txn, "metadata",
-                       db_flags, &dbi_dbp);
-    if (ret != 0)
-        die_lmdberr("open metadata: %s",
-                     mdb_strerror(ret));
+    for (shard = 0;
+         shard < config->lmdb_db_count; shard++) {
+        pthread_mutex_init(&lmdb_mutex[shard], NULL);
+        path = shard_path(shard);
+        LDEBUG("Open LMDB shard %d: %s",
+               shard, path);
 
-    ret = mdb_dbi_open(write_txn, "blockusage",
-                       db_flags, &dbi_dbu);
-    if (ret != 0)
-        die_lmdberr("open blockusage: %s",
-                     mdb_strerror(ret));
+        ret = mdb_env_create(&lmdb_env[shard]);
+        if (ret != 0)
+            die_lmdberr(
+                "mdb_env_create shard %d: %s",
+                shard, mdb_strerror(ret));
 
-    ret = mdb_dbi_open(write_txn, "fileblock",
-                       db_flags, &dbi_dbb);
-    if (ret != 0)
-        die_lmdberr("open fileblock: %s",
-                     mdb_strerror(ret));
+        ret = mdb_env_set_maxdbs(
+                  lmdb_env[shard], 8);
+        if (ret != 0)
+            die_lmdberr(
+                "mdb_env_set_maxdbs shard %d: %s",
+                shard, mdb_strerror(ret));
 
-    ret = mdb_dbi_open(write_txn, "hardlink",
-                       db_flags | MDB_DUPSORT,
-                       &dbi_dbl);
-    if (ret != 0)
-        die_lmdberr("open hardlink: %s",
-                     mdb_strerror(ret));
+        ret = mdb_env_set_mapsize(
+                  lmdb_env[shard], mapsize);
+        if (ret != 0)
+            die_lmdberr(
+                "mdb_env_set_mapsize shard %d: %s",
+                shard, mdb_strerror(ret));
 
-    ret = mdb_dbi_open(write_txn, "symlink",
-                       db_flags, &dbi_dbs);
-    if (ret != 0)
-        die_lmdberr("open symlink: %s",
-                     mdb_strerror(ret));
+        /* Create shard dir if needed */
+        if (mkdir(path, 0755) != 0
+                && errno != EEXIST) {
+            die_lmdberr(
+                "mkdir(%s): %s",
+                path, strerror(errno));
+        }
+        ret = mdb_env_open(lmdb_env[shard], path,
+                           MDB_NOSYNC | MDB_WRITEMAP,
+                           0644);
+        if (ret != 0)
+            die_lmdberr("mdb_env_open(%s): %s",
+                         path, mdb_strerror(ret));
+        s_free(path);
 
-    ret = mdb_dbi_open(write_txn, "dirent",
-                       db_flags | MDB_DUPSORT,
-                       &dbi_dbdirent);
-    if (ret != 0)
-        die_lmdberr("open dirent: %s",
-                     mdb_strerror(ret));
+        ret = mdb_txn_begin(lmdb_env[shard], NULL,
+                             0, &write_txn[shard]);
+        if (ret != 0)
+            die_lmdberr(
+                "initial txn_begin shard %d: %s",
+                shard, mdb_strerror(ret));
 
-    ret = mdb_dbi_open(write_txn, "freelist",
-                       db_flags | MDB_DUPSORT,
-                       &dbi_freelist);
-    if (ret != 0)
-        die_lmdberr("open freelist: %s",
-                     mdb_strerror(ret));
+        ret = mdb_dbi_open(write_txn[shard],
+                           "metadata", db_flags,
+                           &dbi_dbp[shard]);
+        if (ret != 0)
+            die_lmdberr(
+                "open metadata shard %d: %s",
+                shard, mdb_strerror(ret));
 
-    ret = mdb_dbi_open(write_txn, "blockdata",
-                       db_flags, &dbi_dbdta);
-    if (ret != 0)
-        die_lmdberr("open blockdata: %s",
-                     mdb_strerror(ret));
+        ret = mdb_dbi_open(write_txn[shard],
+                           "blockusage", db_flags,
+                           &dbi_dbu[shard]);
+        if (ret != 0)
+            die_lmdberr(
+                "open blockusage shard %d: %s",
+                shard, mdb_strerror(ret));
 
-    /* Commit the DBI-opening transaction */
-    ret = mdb_txn_commit(write_txn);
-    write_txn = NULL;
-    if (ret != 0)
-        die_lmdberr("dbi commit: %s",
-                     mdb_strerror(ret));
+        ret = mdb_dbi_open(write_txn[shard],
+                           "fileblock", db_flags,
+                           &dbi_dbb[shard]);
+        if (ret != 0)
+            die_lmdberr(
+                "open fileblock shard %d: %s",
+                shard, mdb_strerror(ret));
 
-    LINFO("LMDB databases are now open.");
+        ret = mdb_dbi_open(write_txn[shard],
+                           "hardlink",
+                           db_flags | MDB_DUPSORT,
+                           &dbi_dbl[shard]);
+        if (ret != 0)
+            die_lmdberr(
+                "open hardlink shard %d: %s",
+                shard, mdb_strerror(ret));
 
-    /* Per-lock transactions: no persistent write_txn */
-    write_txn = NULL;
+        ret = mdb_dbi_open(write_txn[shard],
+                           "symlink", db_flags,
+                           &dbi_dbs[shard]);
+        if (ret != 0)
+            die_lmdberr(
+                "open symlink shard %d: %s",
+                shard, mdb_strerror(ret));
+
+        ret = mdb_dbi_open(write_txn[shard],
+                           "dirent",
+                           db_flags | MDB_DUPSORT,
+                           &dbi_dbdirent[shard]);
+        if (ret != 0)
+            die_lmdberr(
+                "open dirent shard %d: %s",
+                shard, mdb_strerror(ret));
+
+        ret = mdb_dbi_open(write_txn[shard],
+                           "freelist",
+                           db_flags | MDB_DUPSORT,
+                           &dbi_freelist[shard]);
+        if (ret != 0)
+            die_lmdberr(
+                "open freelist shard %d: %s",
+                shard, mdb_strerror(ret));
+
+        ret = mdb_dbi_open(write_txn[shard],
+                           "blockdata", db_flags,
+                           &dbi_dbdta[shard]);
+        if (ret != 0)
+            die_lmdberr(
+                "open blockdata shard %d: %s",
+                shard, mdb_strerror(ret));
+
+        ret = mdb_txn_commit(write_txn[shard]);
+        write_txn[shard] = NULL;
+        if (ret != 0)
+            die_lmdberr(
+                "dbi commit shard %d: %s",
+                shard, mdb_strerror(ret));
+    }
+
+    LINFO("LMDB open: %d shard(s).",
+          config->lmdb_db_count);
     open_trees();
 
     if (config->blockdata_io_type == FILE_IO) {
-        if (-1 == (fdbdta = s_open2(config->blockdata,
-                O_CREAT | O_RDWR | O_NOATIME, S_IRWXU)))
+        if (-1 == (fdbdta = s_open2(
+                config->blockdata,
+                O_CREAT | O_RDWR | O_NOATIME,
+                S_IRWXU)))
             die_syserr();
         if (-1 == (stat(config->blockdata, &stbuf)))
             die_syserr();
@@ -384,13 +595,16 @@ void bdb_open(void)
 
     EFUNC;
 }
-
 void bdb_close(void)
 {
+    int shard;
     FUNC;
-    if (write_txn) {
-        mdb_txn_commit(write_txn);
-        write_txn = NULL;
+    for (shard = 0;
+         shard < config->lmdb_db_count; shard++) {
+        if (write_txn[shard]) {
+            mdb_txn_commit(write_txn[shard]);
+            write_txn[shard] = NULL;
+        }
     }
     close_trees();
     if (config->blockdata_io_type == FILE_IO) {
@@ -406,49 +620,64 @@ void bdb_close(void)
         close(freplbl);
     s_free(config->replication_logfile);
 
-    mdb_dbi_close(lmdb_env, dbi_dbb);
-    mdb_dbi_close(lmdb_env, dbi_dbu);
-    mdb_dbi_close(lmdb_env, dbi_dbp);
-    mdb_dbi_close(lmdb_env, dbi_dbl);
-    mdb_dbi_close(lmdb_env, dbi_dbs);
-    mdb_dbi_close(lmdb_env, dbi_dbdta);
-    mdb_dbi_close(lmdb_env, dbi_dbdirent);
-    mdb_dbi_close(lmdb_env, dbi_freelist);
-    mdb_env_close(lmdb_env);
-    lmdb_env = NULL;
+    for (shard = 0;
+         shard < config->lmdb_db_count; shard++) {
+        mdb_dbi_close(lmdb_env[shard],
+                      dbi_dbb[shard]);
+        mdb_dbi_close(lmdb_env[shard],
+                      dbi_dbu[shard]);
+        mdb_dbi_close(lmdb_env[shard],
+                      dbi_dbp[shard]);
+        mdb_dbi_close(lmdb_env[shard],
+                      dbi_dbl[shard]);
+        mdb_dbi_close(lmdb_env[shard],
+                      dbi_dbs[shard]);
+        mdb_dbi_close(lmdb_env[shard],
+                      dbi_dbdta[shard]);
+        mdb_dbi_close(lmdb_env[shard],
+                      dbi_dbdirent[shard]);
+        mdb_dbi_close(lmdb_env[shard],
+                      dbi_freelist[shard]);
+        mdb_env_close(lmdb_env[shard]);
+        lmdb_env[shard] = NULL;
+    }
     EFUNC;
 }
-
 void drop_databases(void)
 {
     MDB_txn *drop_txn;
-    int ret;
+    int ret, shard;
 
     FUNC;
-    if (write_txn) {
-        mdb_txn_commit(write_txn);
-        write_txn = NULL;
+    for (shard = 0;
+         shard < config->lmdb_db_count; shard++) {
+        if (write_txn[shard]) {
+            mdb_txn_commit(write_txn[shard]);
+            write_txn[shard] = NULL;
+        }
+        ret = mdb_txn_begin(lmdb_env[shard], NULL,
+                             0, &drop_txn);
+        if (ret != 0)
+            die_lmdberr(
+                "drop txn_begin shard %d: %s",
+                shard, mdb_strerror(ret));
+        mdb_drop(drop_txn, dbi_dbb[shard], 0);
+        mdb_drop(drop_txn, dbi_dbu[shard], 0);
+        mdb_drop(drop_txn, dbi_dbp[shard], 0);
+        mdb_drop(drop_txn, dbi_dbl[shard], 0);
+        mdb_drop(drop_txn, dbi_dbs[shard], 0);
+        mdb_drop(drop_txn, dbi_dbdta[shard], 0);
+        mdb_drop(drop_txn, dbi_dbdirent[shard], 0);
+        mdb_drop(drop_txn, dbi_freelist[shard], 0);
+        ret = mdb_txn_commit(drop_txn);
+        if (ret != 0)
+            die_lmdberr(
+                "drop commit shard %d: %s",
+                shard, mdb_strerror(ret));
     }
-    ret = mdb_txn_begin(lmdb_env, NULL, 0, &drop_txn);
-    if (ret != 0)
-        die_lmdberr("drop txn_begin: %s",
-                     mdb_strerror(ret));
-    mdb_drop(drop_txn, dbi_dbb, 0);
-    mdb_drop(drop_txn, dbi_dbu, 0);
-    mdb_drop(drop_txn, dbi_dbp, 0);
-    mdb_drop(drop_txn, dbi_dbl, 0);
-    mdb_drop(drop_txn, dbi_dbs, 0);
-    mdb_drop(drop_txn, dbi_dbdta, 0);
-    mdb_drop(drop_txn, dbi_dbdirent, 0);
-    mdb_drop(drop_txn, dbi_freelist, 0);
-    ret = mdb_txn_commit(drop_txn);
-    if (ret != 0)
-        die_lmdberr("drop commit: %s",
-                     mdb_strerror(ret));
     LINFO("All LMDB databases dropped.");
     EFUNC;
 }
-
 DAT *search_dbdata(int database, void *keydata,
                    int len, bool lock)
 {
@@ -461,12 +690,11 @@ DAT *search_dbdata(int database, void *keydata,
     if (lock)
         bdb_lock((char *) __PRETTY_FUNCTION__);
 
-    dbi = lmdb_set_db(database);
-
-
+    dbi = lmdb_set_db(0, database);
     mkey.mv_data = keydata;
     mkey.mv_size = len;
-    ret = mdb_get(write_txn, dbi, &mkey, &mdata);
+    ret = mdb_get(write_txn[0], dbi,
+                  &mkey, &mdata);
     if (ret == 0) {
         result = s_malloc(sizeof(DAT));
         result->data = s_malloc(mdata.mv_size);
@@ -489,10 +717,11 @@ void delete_key(int database, void *keydata,
     int ret;
 
     bdb_lock((char *) __PRETTY_FUNCTION__);
-    dbi = lmdb_set_db(database);
+    dbi = lmdb_set_db(0, database);
     mkey.mv_data = keydata;
     mkey.mv_size = len;
-    ret = mdb_del(write_txn, dbi, &mkey, NULL);
+    ret = mdb_del(write_txn[0], dbi,
+                  &mkey, NULL);
     if (ret != 0 && ret != MDB_NOTFOUND) {
         if (msg)
             die_lmdberr("delete_key failed: %s",
@@ -520,15 +749,16 @@ void bin_write_dbdata(int database, void *keydata,
 
     FUNC;
     bdb_lock((char *) __PRETTY_FUNCTION__);
-    dbi = lmdb_set_db(database);
+    dbi = lmdb_set_db(0, database);
     mkey.mv_data = keydata;
     mkey.mv_size = keylen;
     mdata.mv_data = valdata;
     mdata.mv_size = datalen;
-    ret = mdb_put(write_txn, dbi, &mkey, &mdata, 0);
+    ret = mdb_put(write_txn[0], dbi,
+                  &mkey, &mdata, 0);
     if (ret != 0) {
-        mdb_txn_abort(write_txn);
-        write_txn = NULL;
+        mdb_txn_abort(write_txn[0]);
+        write_txn[0] = NULL;
         LFATAL("bin_write_dbdata : database %u "
                "keylen %u datalen %u",
                database, keylen, datalen);
@@ -555,15 +785,16 @@ void bin_write(int database, void *keydata, int keylen,
 
     FUNC;
     bdb_lock((char *) __PRETTY_FUNCTION__);
-    dbi = lmdb_set_db(database);
+    dbi = lmdb_set_db(0, database);
     mkey.mv_data = keydata;
     mkey.mv_size = keylen;
     mdata.mv_data = valdata;
     mdata.mv_size = datalen;
-    ret = mdb_put(write_txn, dbi, &mkey, &mdata, 0);
+    ret = mdb_put(write_txn[0], dbi,
+                  &mkey, &mdata, 0);
     if (ret != 0) {
-        mdb_txn_abort(write_txn);
-        write_txn = NULL;
+        mdb_txn_abort(write_txn[0]);
+        write_txn[0] = NULL;
         die_lmdberr("bin_write failed: %s",
                      mdb_strerror(ret));
     }
@@ -588,17 +819,25 @@ void start_flush_commit(void)
         fsync(fdbdta);
     }
     /* Per-lock txns: each operation already committed.
-       Sync LMDB env to disk for durability. */
-    mdb_env_sync(lmdb_env, 1);
+       Sync all shard envs for durability. */
+    {
+        int shard;
+        for (shard = 0;
+             shard < config->lmdb_db_count; shard++)
+            mdb_env_sync(lmdb_env[shard], 1);
+    }
     EFUNC;
 }
 
 void end_flush_commit(void)
 {
+    int shard;
     FUNC;
     if (config->transactions) {
-        /* Per-lock txns: sync env for durability */
-        mdb_env_sync(lmdb_env, 1);
+        for (shard = 0;
+             shard < config->lmdb_db_count;
+             shard++)
+            mdb_env_sync(lmdb_env[shard], 1);
     }
     EFUNC;
 }
@@ -616,15 +855,16 @@ void btbin_write_dbdata(int database, void *keydata,
 
     FUNC;
     bdb_lock((char *) __PRETTY_FUNCTION__);
-    dbi = lmdb_set_db(database);
+    dbi = lmdb_set_db(0, database);
     mkey.mv_data = keydata;
     mkey.mv_size = keylen;
     mdata.mv_data = valdata;
     mdata.mv_size = datalen;
-    ret = mdb_put(write_txn, dbi, &mkey, &mdata, 0);
+    ret = mdb_put(write_txn[0], dbi,
+                  &mkey, &mdata, 0);
     if (ret != 0) {
-        mdb_txn_abort(write_txn);
-        write_txn = NULL;
+        mdb_txn_abort(write_txn[0]);
+        write_txn[0] = NULL;
         die_lmdberr("btbin_write_dbdata failed: %s",
                      mdb_strerror(ret));
     }
@@ -650,21 +890,21 @@ void btbin_write_dup(int database, void *keydata,
     FUNC;
     if (lock)
         bdb_lock((char *) __PRETTY_FUNCTION__);
-    dbi = lmdb_set_db(database);
+    dbi = lmdb_set_db(0, database);
     mkey.mv_data = keydata;
     mkey.mv_size = keylen;
     mdata.mv_data = valdata;
     mdata.mv_size = datalen;
     /* LMDB DUPSORT databases accept dups natively */
-    ret = mdb_put(write_txn, dbi, &mkey, &mdata, 0);
+    ret = mdb_put(write_txn[0], dbi, &mkey, &mdata, 0);
     if (database == DBDIRENT && keylen == sizeof(unsigned long long) && datalen == sizeof(unsigned long long)) {
         unsigned long long trc_key, trc_val;
         memcpy(&trc_key, keydata, sizeof(trc_key));
         memcpy(&trc_val, valdata, sizeof(trc_val));
     }
     if (ret != 0) {
-        mdb_txn_abort(write_txn);
-        write_txn = NULL;
+        mdb_txn_abort(write_txn[0]);
+        write_txn[0] = NULL;
         die_lmdberr("btbin_write_dup failed: %s",
                      mdb_strerror(ret));
     }
@@ -691,9 +931,9 @@ int bt_entry_exists(int database, void *keydata,
 
     FUNC;
     bdb_lock((char *) __PRETTY_FUNCTION__);
-    dbi = lmdb_set_db(database);
+    dbi = lmdb_set_db(0, database);
 
-    ret = mdb_cursor_open(write_txn, dbi, &cur);
+    ret = mdb_cursor_open(write_txn[0], dbi, &cur);
     if (ret != 0) {
         release_bdb_lock();
         die_lmdberr("bt_entry_exists cursor: %s",
@@ -726,9 +966,9 @@ DAT *btsearch_keyval(int database, void *keydata,
     FUNC;
     if (lock)
         bdb_lock((char *) __PRETTY_FUNCTION__);
-    dbi = lmdb_set_db(database);
+    dbi = lmdb_set_db(0, database);
 
-    ret = mdb_cursor_open(write_txn, dbi, &cur);
+    ret = mdb_cursor_open(write_txn[0], dbi, &cur);
     if (ret != 0) {
         if (lock) release_bdb_lock();
         die_lmdberr("btsearch_keyval cursor: %s",
@@ -779,18 +1019,20 @@ int btdelete_curkey(int database, void *keydata,
 
     FUNC;
     bdb_lock((char *) __PRETTY_FUNCTION__);
-    if (database == DBDIRENT && keylen == sizeof(unsigned long long) && vallen == sizeof(unsigned long long)) {
+    if (database == DBDIRENT
+            && keylen == sizeof(unsigned long long)
+            && vallen == sizeof(unsigned long long)) {
         unsigned long long trc_key, trc_val;
         memcpy(&trc_key, keydata, sizeof(trc_key));
         memcpy(&trc_val, value, sizeof(trc_val));
     }
-    dbi = lmdb_set_db(database);
+    dbi = lmdb_set_db(0, database);
     mkey.mv_data = keydata;
     mkey.mv_size = keylen;
     mdata.mv_data = value;
     mdata.mv_size = vallen;
     /* mdb_del with both key+data deletes specific dup */
-    ret = mdb_del(write_txn, dbi, &mkey, &mdata);
+    ret = mdb_del(write_txn[0], dbi, &mkey, &mdata);
     if (ret != 0 && ret != MDB_NOTFOUND) {
         if (msg)
             LFATAL("btdelete_curkey %s: %s",
@@ -809,9 +1051,377 @@ int btdelete_curkey(int database, void *keydata,
 }
 
 
+
+/* ===================================================
+ * Inode-aware variants: route DB ops to the correct
+ * shard based on the inode number.
+ * These are called by lib_common.c for operations on
+ * DBP, DBB, DBDIRENT, DBL, DBS.
+ * =================================================== */
+
+DAT *search_inode_dbdata(int database,
+                         unsigned long long inode,
+                         void *keydata, int len,
+                         bool lock)
+{
+    int shard = inode_to_shard(inode);
+    MDB_dbi dbi;
+    MDB_val mkey, mdata;
+    DAT *result = NULL;
+    int ret;
+
+    FUNC;
+    if (lock)
+        bdb_lock_shard(shard,
+            (char *) __PRETTY_FUNCTION__);
+    dbi = lmdb_set_db(shard, database);
+    mkey.mv_data = keydata;
+    mkey.mv_size = len;
+    ret = mdb_get(write_txn[shard], dbi,
+                  &mkey, &mdata);
+    if (ret == 0) {
+        result = s_malloc(sizeof(DAT));
+        result->data = s_malloc(mdata.mv_size);
+        memcpy(result->data, mdata.mv_data,
+               mdata.mv_size);
+        result->size = mdata.mv_size;
+    }
+    if (lock)
+        release_bdb_lock_shard(shard);
+    EFUNC;
+    return result;
+}
+
+void bin_write_inode_dbdata(
+    int database, unsigned long long inode,
+    void *keydata, int keylen,
+    void *valdata, int datalen)
+{
+    int shard = inode_to_shard(inode);
+    MDB_dbi dbi;
+    MDB_val mkey, mdata;
+    int ret;
+
+    FUNC;
+    bdb_lock_shard(shard,
+        (char *) __PRETTY_FUNCTION__);
+    dbi = lmdb_set_db(shard, database);
+    mkey.mv_data = keydata;
+    mkey.mv_size = keylen;
+    mdata.mv_data = valdata;
+    mdata.mv_size = datalen;
+    ret = mdb_put(write_txn[shard], dbi,
+                  &mkey, &mdata, 0);
+    if (ret != 0) {
+        mdb_txn_abort(write_txn[shard]);
+        write_txn[shard] = NULL;
+        LFATAL("bin_write_inode_dbdata: "
+               "db %u keylen %u datalen %u",
+               database, keylen, datalen);
+        die_lmdberr(
+            "inode DB write failed: %s",
+            mdb_strerror(ret));
+    }
+    release_bdb_lock_shard(shard);
+    if (config->replication == 1
+            && config->replication_role == 0) {
+        write_repl_data(database, REPLWRITE,
+                        keydata, keylen,
+                        valdata, datalen,
+                        MAX_ALLOWED_THREADS - 2);
+    }
+    EFUNC;
+}
+
+void delete_inode_key(int database,
+                      unsigned long long inode,
+                      void *keydata, int len,
+                      const char *msg)
+{
+    int shard = inode_to_shard(inode);
+    MDB_dbi dbi;
+    MDB_val mkey;
+    int ret;
+
+    bdb_lock_shard(shard,
+        (char *) __PRETTY_FUNCTION__);
+    dbi = lmdb_set_db(shard, database);
+    mkey.mv_data = keydata;
+    mkey.mv_size = len;
+    ret = mdb_del(write_txn[shard], dbi,
+                  &mkey, NULL);
+    if (ret != 0 && ret != MDB_NOTFOUND) {
+        if (msg)
+            die_lmdberr(
+                "delete_inode_key failed: %s",
+                mdb_strerror(ret));
+        else
+            LINFO("delete_inode_key failed: %s",
+                  mdb_strerror(ret));
+    }
+    release_bdb_lock_shard(shard);
+    if (config->replication == 1
+            && config->replication_role == 0) {
+        write_repl_data(database, REPLDELETE,
+                        keydata, len, NULL, 0,
+                        MAX_ALLOWED_THREADS - 2);
+    }
+}
+
+void btbin_write_inode_dbdata(
+    int database, unsigned long long inode,
+    void *keydata, int keylen,
+    void *valdata, int datalen)
+{
+    int shard = inode_to_shard(inode);
+    MDB_dbi dbi;
+    MDB_val mkey, mdata;
+    int ret;
+
+    FUNC;
+    bdb_lock_shard(shard,
+        (char *) __PRETTY_FUNCTION__);
+    dbi = lmdb_set_db(shard, database);
+    mkey.mv_data = keydata;
+    mkey.mv_size = keylen;
+    mdata.mv_data = valdata;
+    mdata.mv_size = datalen;
+    ret = mdb_put(write_txn[shard], dbi,
+                  &mkey, &mdata, 0);
+    if (ret != 0) {
+        mdb_txn_abort(write_txn[shard]);
+        write_txn[shard] = NULL;
+        die_lmdberr(
+            "btbin_write_inode_dbdata: %s",
+            mdb_strerror(ret));
+    }
+    release_bdb_lock_shard(shard);
+    if (config->replication == 1
+            && config->replication_role == 0) {
+        write_repl_data(database, REPLWRITE,
+                        keydata, keylen,
+                        valdata, datalen,
+                        MAX_ALLOWED_THREADS - 2);
+    }
+    EFUNC;
+}
+
+void btbin_write_inode_dup(
+    int database, unsigned long long inode,
+    void *keydata, int keylen,
+    void *valdata, int datalen, bool lock)
+{
+    int shard = inode_to_shard(inode);
+    MDB_dbi dbi;
+    MDB_val mkey, mdata;
+    int ret;
+
+    FUNC;
+    if (lock)
+        bdb_lock_shard(shard,
+            (char *) __PRETTY_FUNCTION__);
+    dbi = lmdb_set_db(shard, database);
+    mkey.mv_data = keydata;
+    mkey.mv_size = keylen;
+    mdata.mv_data = valdata;
+    mdata.mv_size = datalen;
+    ret = mdb_put(write_txn[shard], dbi,
+                  &mkey, &mdata, 0);
+    if (ret != 0) {
+        mdb_txn_abort(write_txn[shard]);
+        write_txn[shard] = NULL;
+        die_lmdberr(
+            "btbin_write_inode_dup: %s",
+            mdb_strerror(ret));
+    }
+    if (lock)
+        release_bdb_lock_shard(shard);
+    if (config->replication == 1
+            && config->replication_role == 0) {
+        write_repl_data(database, REPLWRITE,
+                        keydata, keylen,
+                        valdata, datalen,
+                        MAX_ALLOWED_THREADS - 2);
+    }
+    EFUNC;
+}
+
+int bt_inode_entry_exists(
+    int database, unsigned long long inode,
+    void *keydata, int keylen,
+    void *valdata, int datalen)
+{
+    int shard = inode_to_shard(inode);
+    MDB_dbi dbi;
+    MDB_cursor *cur;
+    MDB_val mkey, mdata;
+    int ret, found = 0;
+
+    FUNC;
+    bdb_lock_shard(shard,
+        (char *) __PRETTY_FUNCTION__);
+    dbi = lmdb_set_db(shard, database);
+    ret = mdb_cursor_open(write_txn[shard],
+                          dbi, &cur);
+    if (ret != 0) {
+        release_bdb_lock_shard(shard);
+        die_lmdberr(
+            "bt_inode_entry_exists cursor: %s",
+            mdb_strerror(ret));
+    }
+    mkey.mv_data = keydata;
+    mkey.mv_size = keylen;
+    mdata.mv_data = valdata;
+    mdata.mv_size = datalen;
+    ret = mdb_cursor_get(cur, &mkey, &mdata,
+                         MDB_GET_BOTH);
+    if (ret == 0)
+        found = 1;
+    mdb_cursor_close(cur);
+    release_bdb_lock_shard(shard);
+    EFUNC;
+    return found;
+}
+
+DAT *btsearch_inode_keyval(
+    int database, unsigned long long inode,
+    void *keydata, int keylen,
+    void *val, int vallen, bool lock)
+{
+    int shard = inode_to_shard(inode);
+    MDB_dbi dbi;
+    MDB_cursor *cur;
+    MDB_val mkey, mdata;
+    DAT *result = NULL;
+    int ret;
+
+    FUNC;
+    if (lock)
+        bdb_lock_shard(shard,
+            (char *) __PRETTY_FUNCTION__);
+    dbi = lmdb_set_db(shard, database);
+    ret = mdb_cursor_open(write_txn[shard],
+                          dbi, &cur);
+    if (ret != 0) {
+        if (lock)
+            release_bdb_lock_shard(shard);
+        die_lmdberr(
+            "btsearch_inode_keyval cursor: %s",
+            mdb_strerror(ret));
+    }
+    mkey.mv_data = keydata;
+    mkey.mv_size = keylen;
+    mdata.mv_data = val;
+    mdata.mv_size = vallen;
+    if (val == NULL || vallen == 0) {
+        ret = mdb_cursor_get(cur, &mkey, &mdata,
+                             MDB_SET_KEY);
+    } else {
+        ret = mdb_cursor_get(cur, &mkey, &mdata,
+                             MDB_GET_BOTH_RANGE);
+    }
+    if (ret == 0) {
+        if (vallen == 0
+                || (mdata.mv_size >= (size_t)vallen
+                && 0 == memcmp(mdata.mv_data,
+                               val, vallen))) {
+            result = s_malloc(sizeof(DAT));
+            result->data =
+                s_malloc(mdata.mv_size);
+            memcpy(result->data, mdata.mv_data,
+                   mdata.mv_size);
+            result->size = mdata.mv_size;
+        }
+    }
+    mdb_cursor_close(cur);
+    if (lock)
+        release_bdb_lock_shard(shard);
+    EFUNC;
+    return result;
+}
+
+int btdelete_inode_curkey(
+    int database, unsigned long long inode,
+    void *keydata, int keylen,
+    void *value, int vallen, const char *msg)
+{
+    int shard = inode_to_shard(inode);
+    MDB_dbi dbi;
+    MDB_val mkey, mdata;
+    int ret;
+
+    FUNC;
+    bdb_lock_shard(shard,
+        (char *) __PRETTY_FUNCTION__);
+    dbi = lmdb_set_db(shard, database);
+    mkey.mv_data = keydata;
+    mkey.mv_size = keylen;
+    mdata.mv_data = value;
+    mdata.mv_size = vallen;
+    ret = mdb_del(write_txn[shard], dbi,
+                  &mkey, &mdata);
+    if (ret != 0 && ret != MDB_NOTFOUND) {
+        if (msg)
+            LFATAL(
+                "btdelete_inode_curkey %s: %s",
+                msg, mdb_strerror(ret));
+    }
+    release_bdb_lock_shard(shard);
+    if (config->replication == 1
+            && config->replication_role == 0) {
+        write_repl_data(database,
+                        REPLDELETECURKEY,
+                        keydata, keylen,
+                        value, vallen,
+                        MAX_ALLOWED_THREADS - 2);
+    }
+    EFUNC;
+    return (ret == 0) ? 0 : -1;
+}
+
+/* Return the inode shard for a DINOINO key
+ * (used for DBL which is keyed by DINOINO). */
+int count_dirlinks_inode(void *linkstr, int len,
+                         unsigned long long inode)
+{
+    int shard = inode_to_shard(inode);
+    MDB_cursor *cur;
+    MDB_val mkey, mdata;
+    int count = 0, ret;
+
+    FUNC;
+    bdb_lock_shard(shard,
+        (char *) __PRETTY_FUNCTION__);
+    ret = mdb_cursor_open(write_txn[shard],
+                          dbi_dbl[shard], &cur);
+    if (ret != 0) {
+        release_bdb_lock_shard(shard);
+        return 0;
+    }
+    mkey.mv_data = linkstr;
+    mkey.mv_size = len;
+    ret = mdb_cursor_get(cur, &mkey, &mdata,
+                         MDB_SET_KEY);
+    if (ret != 0)
+        goto end_exit;
+    do {
+        count++;
+        if (count > 1)
+            break;
+    } while (0 == mdb_cursor_get(cur, &mkey,
+                         &mdata, MDB_NEXT_DUP));
+end_exit:
+    mdb_cursor_close(cur);
+    release_bdb_lock_shard(shard);
+    EFUNC;
+    return count;
+}
+
+
 /* === Complex cursor functions === */
 
-DDSTAT *dnode_bname_to_inode(void *dinode, int dlen,
+DDSTAT *dnode_bname_to_inode(void *dinode,
+                             int dlen,
                              char *bname)
 {
     MDB_cursor *cur;
@@ -823,20 +1433,26 @@ DDSTAT *dnode_bname_to_inode(void *dinode, int dlen,
     DINOINO dinoino;
     unsigned long long *valnode;
     unsigned long long inode;
+    int shard;
 #ifdef ENABLE_CRYPTO
     DAT *decrypted;
 #endif
 
     FUNC;
-    bdb_lock((char *) __PRETTY_FUNCTION__);
+    memcpy(&inode, dinode,
+           sizeof(unsigned long long));
+    shard = inode_to_shard(inode);
+    bdb_lock_shard(shard,
+        (char *) __PRETTY_FUNCTION__);
 
-    ret = mdb_cursor_open(write_txn, dbi_dbdirent, &cur);
+    ret = mdb_cursor_open(write_txn[shard],
+                          dbi_dbdirent[shard],
+                          &cur);
     if (ret != 0) {
-        release_bdb_lock();
+        release_bdb_lock_shard(shard);
         return NULL;
     }
 
-    memcpy(&inode, dinode, sizeof(unsigned long long));
     mkey.mv_data = &inode;
     mkey.mv_size = sizeof(unsigned long long);
     mdata.mv_size = 0;
@@ -845,18 +1461,19 @@ DDSTAT *dnode_bname_to_inode(void *dinode, int dlen,
     ret = mdb_cursor_get(cur, &mkey, &mdata,
                          MDB_SET_KEY);
     if (ret != 0) {
-        LDEBUG("dnode_bname_to_inode: not found %s",
-               mdb_strerror(ret));
+        LDEBUG(
+            "dnode_bname_to_inode: not found %s",
+            mdb_strerror(ret));
         goto end;
     }
     do {
-        valnode = (unsigned long long *) mdata.mv_data;
+        valnode =
+            (unsigned long long *) mdata.mv_data;
         if (inode == *valnode && inode != 1)
             continue;
         LDEBUG("Search for inode %llu", *valnode);
-        statdata = search_dbdata(DBP, valnode,
-                       sizeof(unsigned long long),
-                       NOLOCK);
+        statdata = dbp_get_within_lock(
+                       *valnode, shard);
         if (NULL == statdata) {
             LINFO("Unable to find file in dbp.");
             continue;
@@ -882,20 +1499,25 @@ DDSTAT *dnode_bname_to_inode(void *dinode, int dlen,
         } else {
             memcpy(&dinoino.dirnode, dinode,
                    sizeof(unsigned long long));
-            dinoino.inode = filestat->stbuf.st_ino;
-            fname = btsearch_keyval(DBL, &dinoino,
-                        sizeof(DINOINO), bname,
-                        strlen(bname), NOLOCK);
+            dinoino.inode =
+                filestat->stbuf.st_ino;
+            fname = dbl_keyval_within_lock(
+                        dinoino.inode, shard,
+                        &dinoino, sizeof(DINOINO),
+                        bname, strlen(bname));
             if (fname) {
                 lfilestat =
                     s_zmalloc(sizeof(DDSTAT));
-                memcpy(lfilestat, statdata->data,
+                memcpy(lfilestat,
+                       statdata->data,
                        statdata->size);
                 s_free(statdata);
                 ddstatfree(filestat);
                 memcpy(&lfilestat->filename,
-                       fname->data, fname->size);
-                lfilestat->filename[fname->size] = 0;
+                       fname->data,
+                       fname->size);
+                lfilestat->filename[
+                    fname->size] = 0;
                 filestat = lfilestat;
                 DATfree(fname);
                 break;
@@ -905,21 +1527,22 @@ DDSTAT *dnode_bname_to_inode(void *dinode, int dlen,
         }
         ddstatfree(filestat);
         filestat = NULL;
-    } while (0 == mdb_cursor_get(cur, &mkey, &mdata,
-                                 MDB_NEXT_DUP));
+    } while (0 == mdb_cursor_get(cur, &mkey,
+                         &mdata, MDB_NEXT_DUP));
 end:
     mdb_cursor_close(cur);
-    release_bdb_lock();
+    release_bdb_lock_shard(shard);
     if (filestat) {
-        LDEBUG("dnode_bname_to_inode: %s inode %llu",
-               filestat->filename,
-               (unsigned long long)
-               filestat->stbuf.st_ino);
+        LDEBUG(
+            "dnode_bname_to_inode: %s inode %llu",
+            filestat->filename,
+            (unsigned long long)
+            filestat->stbuf.st_ino);
     }
     return filestat;
 }
-
-unsigned long long has_nodes(unsigned long long inode)
+unsigned long long has_nodes(
+    unsigned long long inode)
 {
     unsigned long long res = 0;
     unsigned long long *filenode;
@@ -928,14 +1551,18 @@ unsigned long long has_nodes(unsigned long long inode)
     DDSTAT *ddstat;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
-    int ret;
+    int ret, shard;
 
     FUNC;
-    bdb_lock((char *) __PRETTY_FUNCTION__);
+    shard = inode_to_shard(inode);
+    bdb_lock_shard(shard,
+        (char *) __PRETTY_FUNCTION__);
 
-    ret = mdb_cursor_open(write_txn, dbi_dbdirent, &cur);
+    ret = mdb_cursor_open(write_txn[shard],
+                          dbi_dbdirent[shard],
+                          &cur);
     if (ret != 0) {
-        release_bdb_lock();
+        release_bdb_lock_shard(shard);
         return 0;
     }
 
@@ -949,18 +1576,19 @@ unsigned long long has_nodes(unsigned long long inode)
     do {
         filenode =
             (unsigned long long *) mdata.mv_data;
-        filedata = search_dbdata(DBP, filenode,
-                       sizeof(unsigned long long),
-                       NOLOCK);
+        filedata = dbp_get_within_lock(
+                       *filenode, shard);
         if (filedata) {
             ddstat = value_to_ddstat(filedata);
             DATfree(filedata);
             if (*filenode == inode)
                 dotdir = 1;
             if (ddstat->filename) {
-                if (0 == strcmp(ddstat->filename, "."))
+                if (0 == strcmp(
+                        ddstat->filename, "."))
                     dotdir = 1;
-                if (0 == strcmp(ddstat->filename, ".."))
+                if (0 == strcmp(
+                        ddstat->filename, ".."))
                     dotdir = 1;
             }
             if (!dotdir) {
@@ -969,25 +1597,26 @@ unsigned long long has_nodes(unsigned long long inode)
             ddstatfree(ddstat);
             dotdir = 0;
         }
-    } while (0 == mdb_cursor_get(cur, &mkey, &mdata,
-                                 MDB_NEXT_DUP));
+    } while (0 == mdb_cursor_get(cur, &mkey,
+                         &mdata, MDB_NEXT_DUP));
 end:
     mdb_cursor_close(cur);
-    release_bdb_lock();
-    LDEBUG("has_nodes inode %llu contains %llu files",
-           inode, res);
+    release_bdb_lock_shard(shard);
+    LDEBUG(
+        "has_nodes inode %llu contains %llu files",
+        inode, res);
     EFUNC;
     return res;
 }
-
 int fs_readdir(const char *path, void *buf,
-               fuse_fill_dir_t filler, off_t offset,
+               fuse_fill_dir_t filler,
+               off_t offset,
                struct fuse_file_info *fi)
 {
     int retcode = 0;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
-    int ret;
+    int ret, shard;
     struct stat stbuf;
     DAT *filedata;
     DDSTAT *ddstat;
@@ -1002,11 +1631,16 @@ int fs_readdir(const char *path, void *buf,
     if (0 == strcmp(path, "/.lessfs/locks"))
         locks_to_dir(buf, filler, fi);
 
-    bdb_lock((char *) __PRETTY_FUNCTION__);
+    shard = inode_to_shard(
+                (unsigned long long)stbuf.st_ino);
+    bdb_lock_shard(shard,
+        (char *) __PRETTY_FUNCTION__);
 
-    ret = mdb_cursor_open(write_txn, dbi_dbdirent, &cur);
+    ret = mdb_cursor_open(write_txn[shard],
+                          dbi_dbdirent[shard],
+                          &cur);
     if (ret != 0) {
-        release_bdb_lock();
+        release_bdb_lock_shard(shard);
         return -EIO;
     }
 
@@ -1017,20 +1651,25 @@ int fs_readdir(const char *path, void *buf,
                          MDB_SET_KEY);
     if (ret == 0) {
         do {
-            if (0 != memcmp(mdata.mv_data,
-                            &stbuf.st_ino,
-                            sizeof(unsigned long long)))
+            if (0 != memcmp(
+                    mdata.mv_data,
+                    &stbuf.st_ino,
+                    sizeof(unsigned long long)))
             {
-                filedata = search_dbdata(DBP,
-                               mdata.mv_data,
-                               mdata.mv_size, NOLOCK);
+                unsigned long long child_ino;
+                memcpy(&child_ino,
+                       mdata.mv_data,
+                       sizeof(unsigned long long));
+                filedata = dbp_get_within_lock(
+                               child_ino, shard);
                 if (filedata) {
                     ddstat =
                         value_to_ddstat(filedata);
                     DATfree(filedata);
                     if (ddstat->filename[0] == 0) {
                         fs_read_hardlink(stbuf,
-                            ddstat, buf, filler, fi);
+                            ddstat, buf, filler,
+                            fi, shard);
                     } else {
                         fil_fuse_info(ddstat, buf,
                                       filler, fi);
@@ -1042,27 +1681,49 @@ int fs_readdir(const char *path, void *buf,
                          &mdata, MDB_NEXT_DUP));
     }
     mdb_cursor_close(cur);
-    release_bdb_lock();
+    release_bdb_lock_shard(shard);
     LDEBUG("fs_readdir: return");
     return retcode;
 }
-
 void fs_read_hardlink(struct stat stbuf,
-                      DDSTAT *ddstat, void *buf,
+                      DDSTAT *ddstat,
+                      void *buf,
                       fuse_fill_dir_t filler,
-                      struct fuse_file_info *fi)
+                      struct fuse_file_info *fi,
+                      int held_shard)
 {
     MDB_cursor *cur;
     MDB_val mkey, mdata;
     DINOINO dinoino;
     int ret;
+    unsigned long long file_ino;
+    int shard;
+    MDB_txn *txn;
+    MDB_txn *rtxn = NULL;
 
     FUNC;
     dinoino.dirnode = stbuf.st_ino;
     dinoino.inode = ddstat->stbuf.st_ino;
+    file_ino = (unsigned long long)
+                   ddstat->stbuf.st_ino;
+    shard = inode_to_shard(file_ino);
 
-    ret = mdb_cursor_open(write_txn, dbi_dbl, &cur);
+    if (shard == held_shard) {
+        txn = write_txn[shard];
+    } else {
+        ret = mdb_txn_begin(lmdb_env[shard],
+                            NULL, MDB_RDONLY,
+                            &rtxn);
+        if (ret != 0)
+            return;
+        txn = rtxn;
+    }
+
+    ret = mdb_cursor_open(txn,
+                          dbi_dbl[shard], &cur);
     if (ret != 0) {
+        if (rtxn)
+            mdb_txn_abort(rtxn);
         return;
     }
 
@@ -1073,20 +1734,28 @@ void fs_read_hardlink(struct stat stbuf,
                          MDB_SET_KEY);
     if (ret == 0) {
         do {
-            memcpy(&ddstat->filename, mdata.mv_data,
+            memcpy(&ddstat->filename,
+                   mdata.mv_data,
                    mdata.mv_size);
             ddstat->filename[mdata.mv_size] = 0;
-            LDEBUG("fs_read_hardlink: %s size %zu",
-                   ddstat->filename, mdata.mv_size);
-            fil_fuse_info(ddstat, buf, filler, fi);
+            LDEBUG(
+                "fs_read_hardlink: %s size %zu",
+                ddstat->filename,
+                mdata.mv_size);
+            fil_fuse_info(ddstat, buf, filler,
+                          fi);
             ddstat->filename[0] = 0;
         } while (0 == mdb_cursor_get(cur, &mkey,
                          &mdata, MDB_NEXT_DUP));
     }
     mdb_cursor_close(cur);
+    if (rtxn)
+        mdb_txn_abort(rtxn);
     EFUNC;
 }
-
+/* count_dirlinks: shard-0 version kept for
+ * compatibility. Use count_dirlinks_inode for
+ * sharded DBL lookups. */
 int count_dirlinks(void *linkstr, int len)
 {
     MDB_cursor *cur;
@@ -1094,11 +1763,13 @@ int count_dirlinks(void *linkstr, int len)
     int count = 0, ret;
 
     FUNC;
-    bdb_lock((char *) __PRETTY_FUNCTION__);
+    bdb_lock_shard(0,
+        (char *) __PRETTY_FUNCTION__);
 
-    ret = mdb_cursor_open(write_txn, dbi_dbl, &cur);
+    ret = mdb_cursor_open(write_txn[0],
+                          dbi_dbl[0], &cur);
     if (ret != 0) {
-        release_bdb_lock();
+        release_bdb_lock_shard(0);
         return 0;
     }
 
@@ -1112,11 +1783,11 @@ int count_dirlinks(void *linkstr, int len)
         count++;
         if (count > 1)
             break;
-    } while (0 == mdb_cursor_get(cur, &mkey, &mdata,
-                                 MDB_NEXT_DUP));
+    } while (0 == mdb_cursor_get(cur, &mkey,
+                         &mdata, MDB_NEXT_DUP));
 end_exit:
     mdb_cursor_close(cur);
-    release_bdb_lock();
+    release_bdb_lock_shard(0);
     EFUNC;
     return count;
 }
@@ -1135,9 +1806,10 @@ unsigned long long get_offset_fast(
 
     FUNC;
     thetime = time(NULL);
-    bdb_lock((char *) __PRETTY_FUNCTION__);
+    bdb_lock_shard(0,
+        (char *) __PRETTY_FUNCTION__);
 
-    ret = mdb_cursor_open(write_txn, dbi_freelist,
+    ret = mdb_cursor_open(write_txn[0], dbi_freelist[0],
                           &cur);
     if (ret != 0) {
         release_bdb_lock();
@@ -1174,7 +1846,7 @@ unsigned long long get_offset_fast(
                          &mdata, MDB_NEXT_DUP));
     }
     mdb_cursor_close(cur);
-    release_bdb_lock();
+    release_bdb_lock_shard(0);
     if (found) {
         if (config->replication == 1
                 && config->replication_role == 0) {
@@ -1221,9 +1893,10 @@ INUSE *get_offset_reclaim(unsigned long long mbytes,
 
     FUNC;
     thetime = time(NULL);
-    bdb_lock((char *) __PRETTY_FUNCTION__);
+    bdb_lock_shard(0,
+        (char *) __PRETTY_FUNCTION__);
 
-    ret = mdb_cursor_open(write_txn, dbi_freelist,
+    ret = mdb_cursor_open(write_txn[0], dbi_freelist[0],
                           &cur);
     if (ret != 0) {
         release_bdb_lock();
@@ -1291,7 +1964,7 @@ INUSE *get_offset_reclaim(unsigned long long mbytes,
         hasone = 0;
     }
     mdb_cursor_close(cur);
-    release_bdb_lock();
+    release_bdb_lock_shard(0);
     if (inuse) {
         if (config->replication == 1
                 && config->replication_role == 0) {
@@ -1332,12 +2005,14 @@ void bdb_restart_truncation(void)
     if (!config->background_delete)
         return;
 
-    bdb_lock((char *) __PRETTY_FUNCTION__);
+    bdb_lock_shard(0,
+        (char *) __PRETTY_FUNCTION__);
 
-    ret = mdb_cursor_open(write_txn, dbi_freelist,
+    ret = mdb_cursor_open(write_txn[0],
+                          dbi_freelist[0],
                           &cur);
     if (ret != 0) {
-        release_bdb_lock();
+        release_bdb_lock_shard(0);
         return;
     }
 
@@ -1369,7 +2044,7 @@ void bdb_restart_truncation(void)
                                  MDB_NEXT_DUP));
 end_exit:
     mdb_cursor_close(cur);
-    release_bdb_lock();
+    release_bdb_lock_shard(0);
     EFUNC;
 }
 
@@ -1393,11 +2068,18 @@ char *lessfs_stats()
     MDB_cursor *cur;
     MDB_val mkey, mdata;
     MDB_stat mst;
-    int ret;
+    int ret, shard;
 
-    bdb_lock((char *) __PRETTY_FUNCTION__);
-    mdb_stat(write_txn, dbi_dbp, &mst);
-    lcount = mst.ms_entries;
+    /* Count total entries across all shards */
+    for (shard = 0;
+         shard < config->lmdb_db_count; shard++) {
+        bdb_lock_shard(shard,
+            (char *) __PRETTY_FUNCTION__);
+        mdb_stat(write_txn[shard],
+                 dbi_dbp[shard], &mst);
+        lcount += mst.ms_entries;
+        release_bdb_lock_shard(shard);
+    }
     lcount++;
     lines = s_malloc(lcount * sizeof(char *));
     lines[0] =
@@ -1406,222 +2088,261 @@ char *lessfs_stats()
             "  COMPRESSED_SIZE"
             "            RATIO FILENAME\n");
 
-    ret = mdb_cursor_open(write_txn, dbi_dbp, &cur);
-    if (ret != 0) {
-        release_bdb_lock();
-        s_free((char *) lines[0]);
-        s_free(lines);
-        return s_strdup("Error: cannot open cursor");
-    }
-    while (0 == mdb_cursor_get(cur, &mkey, &mdata,
-                               MDB_NEXT)) {
-        if (0 != memcmp(mkey.mv_data, nfi, 3)
-                && 0 != memcmp(mkey.mv_data,
-                               seq, 3)) {
-            memcpy(&inode, mkey.mv_data,
-                   sizeof(unsigned long long));
-            data.data = mdata.mv_data;
-            data.size = mdata.mv_size;
-            if (inode == 0) {
-                crypto = (CRYPTO *) mdata.mv_data;
-            } else {
-                ddstat = value_to_ddstat(&data);
-                ratio = 0;
-                if (ddstat->stbuf.st_size != 0) {
-                    if (ddstat->real_size == 0) {
-                        ratio = 1000;
-                    } else {
-                        ratio =
-                            (float)
-                            ddstat->stbuf.st_size
-                            / (float)
-                            ddstat->real_size;
-                    }
-                }
-                if (S_ISREG(
-                        ddstat->stbuf.st_mode)) {
-#ifdef x86_64
-                    line = as_sprintf(
-                        __FILE__, __LINE__,
-                        "%7lu  %15lu"
-                        "  %15llu"
-                        "  %15.2f %s\n",
-                        ddstat->stbuf.st_ino,
-                        ddstat->stbuf.st_size,
-                        ddstat->real_size,
-                        ratio,
-                        ddstat->filename);
-#else
-                    line = as_sprintf(
-                        __FILE__, __LINE__,
-                        "%7llu  %15llu"
-                        "  %15llu"
-                        "  %15.2f %s\n",
-                        ddstat->stbuf.st_ino,
-                        ddstat->stbuf.st_size,
-                        ddstat->real_size,
-                        ratio,
-                        ddstat->filename);
-#endif
-                    lines[count++] = line;
-                } else {
-                    lcount--;
-                }
-                ddstatfree(ddstat);
-            }
-        } else {
-            lcount--;
+    for (shard = 0;
+         shard < config->lmdb_db_count; shard++) {
+        bdb_lock_shard(shard,
+            (char *) __PRETTY_FUNCTION__);
+        ret = mdb_cursor_open(write_txn[shard],
+                              dbi_dbp[shard], &cur);
+        if (ret != 0) {
+            release_bdb_lock_shard(shard);
+            continue;
         }
-        if (count == lcount)
-            break;
+        while (0 == mdb_cursor_get(cur, &mkey,
+                                   &mdata,
+                                   MDB_NEXT)) {
+            if (0 != memcmp(mkey.mv_data, nfi, 3)
+                    && 0 != memcmp(mkey.mv_data,
+                                   seq, 3)) {
+                memcpy(&inode, mkey.mv_data,
+                       sizeof(unsigned long long));
+                data.data = mdata.mv_data;
+                data.size = mdata.mv_size;
+                if (inode == 0) {
+                    crypto =
+                        (CRYPTO *) mdata.mv_data;
+                } else {
+                    ddstat = value_to_ddstat(&data);
+                    ratio = 0;
+                    if (ddstat->stbuf.st_size
+                            != 0) {
+                        if (ddstat->real_size
+                                == 0) {
+                            ratio = 1000;
+                        } else {
+                            ratio = (float)
+                                ddstat->stbuf
+                                    .st_size
+                                / (float)
+                                ddstat->real_size;
+                        }
+                    }
+                    if (S_ISREG(
+                            ddstat->stbuf
+                                .st_mode)) {
+#ifdef x86_64
+                        line = as_sprintf(
+                            __FILE__, __LINE__,
+                            "%7lu  %15lu"
+                            "  %15llu"
+                            "  %15.2f %s\n",
+                            ddstat->stbuf.st_ino,
+                            ddstat->stbuf.st_size,
+                            ddstat->real_size,
+                            ratio,
+                            ddstat->filename);
+#else
+                        line = as_sprintf(
+                            __FILE__, __LINE__,
+                            "%7llu  %15llu"
+                            "  %15llu"
+                            "  %15.2f %s\n",
+                            ddstat->stbuf.st_ino,
+                            ddstat->stbuf.st_size,
+                            ddstat->real_size,
+                            ratio,
+                            ddstat->filename);
+#endif
+                        lines[count++] = line;
+                    } else {
+                        lcount--;
+                    }
+                    ddstatfree(ddstat);
+                }
+            } else {
+                lcount--;
+            }
+            if (count == lcount)
+                break;
+        }
+        mdb_cursor_close(cur);
+        release_bdb_lock_shard(shard);
     }
     lfsmsg = as_strarrcat(lines, count);
-    mdb_cursor_close(cur);
     while (count) {
         s_free((char *) lines[--count]);
     }
     s_free(lines);
-    release_bdb_lock();
     EFUNC;
     return lfsmsg;
 }
-
 void listdbp()
 {
     DDSTAT *ddstat;
-    DAT *data;
     unsigned long long *inode;
     char *nfi = "NFI";
     char *seq = "SEQ";
     CRYPTO *crypto;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
-    int count = 0, ret;
+    DAT tmp_data;
+    int count = 0, ret, shard;
 
-    ret = mdb_cursor_open(write_txn, dbi_dbp, &cur);
-    if (ret != 0) {
-        return;
-    }
-    while (0 == mdb_cursor_get(cur, &mkey, &mdata,
-                               MDB_NEXT)) {
-        count++;
-        inode =
-            (unsigned long long *) mkey.mv_data;
-        if (0 == memcmp(mkey.mv_data, nfi, 3)
-                || 0 == memcmp(mkey.mv_data, seq, 3))
-        {
+    for (shard = 0;
+         shard < config->lmdb_db_count; shard++) {
+        bdb_lock_shard(shard,
+            (char *) __PRETTY_FUNCTION__);
+        ret = mdb_cursor_open(write_txn[shard],
+                              dbi_dbp[shard], &cur);
+        if (ret != 0) {
+            release_bdb_lock_shard(shard);
+            continue;
+        }
+        while (0 == mdb_cursor_get(cur, &mkey,
+                                   &mdata,
+                                   MDB_NEXT)) {
+            count++;
             inode =
-                (unsigned long long *) mdata.mv_data;
-            printf("NFI : %llu\n", *inode);
-        } else {
-            data = search_dbdata(DBP, inode,
-                       sizeof(unsigned long long),
-                       NOLOCK);
-            if (data) {
+              (unsigned long long *)mkey.mv_data;
+            if (0 == memcmp(mkey.mv_data, nfi, 3)
+                    || 0 == memcmp(mkey.mv_data,
+                                   seq, 3)) {
+                inode = (unsigned long long *)
+                            mdata.mv_data;
+                printf("NFI : %llu\n", *inode);
+            } else {
+                tmp_data.data = mdata.mv_data;
+                tmp_data.size = mdata.mv_size;
                 if (*inode == 0) {
-                    crypto = (CRYPTO *) data->data;
+                    crypto = (CRYPTO *)
+                                 mdata.mv_data;
                 } else {
-                    ddstat =
-                        value_to_ddstat(data);
+                    ddstat = value_to_ddstat(
+                                 &tmp_data);
 #ifdef x86_64
                     printf(
-                        "ddstat->filename %s \n"
-                        "      ->inode %lu  "
-                        "-> size %lu  "
-                        "-> real_size %llu "
-                        "time %lu mode %u\n",
-                        ddstat->filename,
-                        ddstat->stbuf.st_ino,
-                        ddstat->stbuf.st_size,
-                        ddstat->real_size,
-                        ddstat->stbuf.st_atim.tv_sec,
-                        ddstat->stbuf.st_mode);
+                      "ddstat->filename %s \n"
+                      "      ->inode %lu  "
+                      "-> size %lu  "
+                      "-> real_size %llu "
+                      "time %lu mode %u\n",
+                      ddstat->filename,
+                      ddstat->stbuf.st_ino,
+                      ddstat->stbuf.st_size,
+                      ddstat->real_size,
+                      ddstat->stbuf.st_atim
+                          .tv_sec,
+                      ddstat->stbuf.st_mode);
 #else
                     printf(
-                        "ddstat->filename %s \n"
-                        "      ->inode %llu "
-                        "-> size %llu "
-                        "-> real_size %llu "
-                        "time %lu mode %u\n",
-                        ddstat->filename,
-                        ddstat->stbuf.st_ino,
-                        ddstat->stbuf.st_size,
-                        ddstat->real_size,
-                        ddstat->stbuf.st_atim.tv_sec,
-                        ddstat->stbuf.st_mode);
+                      "ddstat->filename %s \n"
+                      "      ->inode %llu "
+                      "-> size %llu "
+                      "-> real_size %llu "
+                      "time %lu mode %u\n",
+                      ddstat->filename,
+                      ddstat->stbuf.st_ino,
+                      ddstat->stbuf.st_size,
+                      ddstat->real_size,
+                      ddstat->stbuf.st_atim
+                          .tv_sec,
+                      ddstat->stbuf.st_mode);
 #endif
                     if (S_ISDIR(
-                            ddstat->stbuf.st_mode)) {
+                            ddstat->stbuf
+                                .st_mode)) {
                         printf(
-                            "      ->filename %s"
-                            " is a directory\n",
-                            ddstat->filename);
+                          "      ->filename %s"
+                          " is a directory\n",
+                          ddstat->filename);
                     }
                     ddstatfree(ddstat);
                 }
-                DATfree(data);
             }
         }
+        mdb_cursor_close(cur);
+        release_bdb_lock_shard(shard);
     }
-    mdb_cursor_close(cur);
 }
-
 void listdirent()
 {
     unsigned long long *dir;
     unsigned long long *ent;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
-    int ret;
+    int ret, shard;
 
-    ret = mdb_cursor_open(write_txn, dbi_dbdirent, &cur);
-    if (ret != 0) {
-        return;
+    for (shard = 0;
+         shard < config->lmdb_db_count; shard++) {
+        bdb_lock_shard(shard,
+            (char *) __PRETTY_FUNCTION__);
+        ret = mdb_cursor_open(
+                  write_txn[shard],
+                  dbi_dbdirent[shard], &cur);
+        if (ret != 0) {
+            release_bdb_lock_shard(shard);
+            continue;
+        }
+        while (0 == mdb_cursor_get(cur, &mkey,
+                                   &mdata,
+                                   MDB_NEXT)) {
+            dir =
+              (unsigned long long *)mkey.mv_data;
+            ent =
+              (unsigned long long *)mdata.mv_data;
+            printf("%llu:%llu\n", *dir, *ent);
+        }
+        mdb_cursor_close(cur);
+        release_bdb_lock_shard(shard);
     }
-    while (0 == mdb_cursor_get(cur, &mkey, &mdata,
-                               MDB_NEXT)) {
-        dir =
-            (unsigned long long *) mkey.mv_data;
-        ent =
-            (unsigned long long *) mdata.mv_data;
-        printf("%llu:%llu\n", *dir, *ent);
-    }
-    mdb_cursor_close(cur);
 }
-
 void list_hardlinks()
 {
     unsigned long long inode;
     DINOINO dinoino;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
-    int ret;
+    int ret, shard;
 
-    ret = mdb_cursor_open(write_txn, dbi_dbl, &cur);
-    if (ret != 0) {
-        return;
-    }
-    while (0 == mdb_cursor_get(cur, &mkey, &mdata,
-                               MDB_NEXT)) {
-        if (mkey.mv_size == sizeof(DINOINO)) {
-            memcpy(&dinoino, mkey.mv_data,
-                   sizeof(DINOINO));
-            printf("dinoino %llu-%llu : inode %s\n",
-                   dinoino.dirnode, dinoino.inode,
-                   (char *) mdata.mv_data);
-        } else {
-            memcpy(&inode, mkey.mv_data,
-                   sizeof(unsigned long long));
-            memcpy(&dinoino, mdata.mv_data,
-                   sizeof(DINOINO));
-            printf("inode %llu : %llu-%llu "
-                   "dinoino\n", inode,
-                   dinoino.dirnode, dinoino.inode);
+    for (shard = 0;
+         shard < config->lmdb_db_count; shard++) {
+        bdb_lock_shard(shard,
+            (char *) __PRETTY_FUNCTION__);
+        ret = mdb_cursor_open(write_txn[shard],
+                              dbi_dbl[shard],
+                              &cur);
+        if (ret != 0) {
+            release_bdb_lock_shard(shard);
+            continue;
         }
+        while (0 == mdb_cursor_get(cur, &mkey,
+                                   &mdata,
+                                   MDB_NEXT)) {
+            if (mkey.mv_size == sizeof(DINOINO)) {
+                memcpy(&dinoino, mkey.mv_data,
+                       sizeof(DINOINO));
+                printf(
+                    "dinoino %llu-%llu : "
+                    "inode %s\n",
+                    dinoino.dirnode,
+                    dinoino.inode,
+                    (char *) mdata.mv_data);
+            } else {
+                memcpy(&inode, mkey.mv_data,
+                       sizeof(unsigned long long));
+                memcpy(&dinoino, mdata.mv_data,
+                       sizeof(DINOINO));
+                printf(
+                    "inode %llu : %llu-%llu "
+                    "dinoino\n", inode,
+                    dinoino.dirnode,
+                    dinoino.inode);
+            }
+        }
+        mdb_cursor_close(cur);
+        release_bdb_lock_shard(shard);
     }
-    mdb_cursor_close(cur);
 }
-
 void listdbb()
 {
     char *asc_hash = NULL;
@@ -1629,29 +2350,38 @@ void listdbb()
     unsigned long long blocknr;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
-    int ret;
+    int ret, shard;
 
-    ret = mdb_cursor_open(write_txn, dbi_dbb, &cur);
-    if (ret != 0) {
-        return;
+    for (shard = 0;
+         shard < config->lmdb_db_count; shard++) {
+        bdb_lock_shard(shard,
+            (char *) __PRETTY_FUNCTION__);
+        ret = mdb_cursor_open(write_txn[shard],
+                              dbi_dbb[shard],
+                              &cur);
+        if (ret != 0) {
+            release_bdb_lock_shard(shard);
+            continue;
+        }
+        while (0 == mdb_cursor_get(cur, &mkey,
+                                   &mdata,
+                                   MDB_NEXT)) {
+            asc_hash = ascii_hash(
+                (unsigned char *)mdata.mv_data);
+            memcpy(&inode, mkey.mv_data,
+                   sizeof(unsigned long long));
+            memcpy(&blocknr,
+                   mkey.mv_data
+                       + sizeof(unsigned long long),
+                   sizeof(unsigned long long));
+            printf("%llu-%llu : %s\n",
+                   inode, blocknr, asc_hash);
+            s_free(asc_hash);
+        }
+        mdb_cursor_close(cur);
+        release_bdb_lock_shard(shard);
     }
-    while (0 == mdb_cursor_get(cur, &mkey, &mdata,
-                               MDB_NEXT)) {
-        asc_hash = ascii_hash(
-            (unsigned char *) mdata.mv_data);
-        memcpy(&inode, mkey.mv_data,
-               sizeof(unsigned long long));
-        memcpy(&blocknr,
-               mkey.mv_data
-                   + sizeof(unsigned long long),
-               sizeof(unsigned long long));
-        printf("%llu-%llu : %s\n",
-               inode, blocknr, asc_hash);
-        s_free(asc_hash);
-    }
-    mdb_cursor_close(cur);
 }
-
 void listfree(int freespace_summary)
 {
     unsigned long long mbytes;
@@ -1663,8 +2393,12 @@ void listfree(int freespace_summary)
     FREEBLOCK *freeblock;
     int ret;
 
-    ret = mdb_cursor_open(write_txn, dbi_freelist, &cur);
+    bdb_lock_shard(0,
+        (char *) __PRETTY_FUNCTION__);
+    ret = mdb_cursor_open(write_txn[0],
+                          dbi_freelist[0], &cur);
     if (ret != 0) {
+        release_bdb_lock_shard(0);
         return;
     }
     while (0 == mdb_cursor_get(cur, &mkey, &mdata,
@@ -1714,6 +2448,7 @@ void listfree(int freespace_summary)
     printf("Total available space in %s : %lu\n\n",
            config->blockdata, freespace);
     mdb_cursor_close(cur);
+    release_bdb_lock_shard(0);
 }
 
 void listdbu()
@@ -1738,8 +2473,12 @@ void flistdbu()
     MDB_val mkey, mdata;
     int ret;
 
-    ret = mdb_cursor_open(write_txn, dbi_dbu, &cur);
+    bdb_lock_shard(0,
+        (char *) __PRETTY_FUNCTION__);
+    ret = mdb_cursor_open(write_txn[0],
+                          dbi_dbu[0], &cur);
     if (ret != 0) {
+        release_bdb_lock_shard(0);
         return;
     }
     while (0 == mdb_cursor_get(cur, &mkey, &mdata,
@@ -1778,6 +2517,7 @@ void flistdbu()
         }
     }
     mdb_cursor_close(cur);
+    release_bdb_lock_shard(0);
 }
 
 
@@ -1800,7 +2540,7 @@ char *inode_to_path(unsigned long long inode)
     DDSTAT *ddstat;
     MDB_cursor *cur;
     MDB_val mkey, mdata;
-    int ret;
+    int ret, shard;
     unsigned long long parent_ino;
     int found;
     char *result;
@@ -1808,43 +2548,37 @@ char *inode_to_path(unsigned long long inode)
     int idx;
 
     FUNC;
-    /* Root inode is always 1 */
     if (cur_ino == 1)
         return s_strdup("/");
 
-    bdb_lock((char *) __PRETTY_FUNCTION__);
-
     while (cur_ino != 1 && depth < 255) {
-        /* Get the filename for cur_ino */
-        dskdata = search_dbdata(DBP, &cur_ino,
-            sizeof(unsigned long long), NOLOCK);
-        if (dskdata == NULL) {
-            release_bdb_lock();
+        dskdata = search_inode_dbdata(DBP,
+            cur_ino, &cur_ino,
+            sizeof(unsigned long long), true);
+        if (dskdata == NULL)
             goto fail;
-        }
         ddstat = value_to_ddstat(dskdata);
         DATfree(dskdata);
 
         if (strcmp(ddstat->filename, "/") == 0) {
             ddstatfree(ddstat);
-            break;  /* reached root */
+            break;
         }
         if (ddstat->filename[0] == 0) {
-            /* Hardlinked file: empty DBP filename.
-               Look up a name via DBL. */
-            DAT *lnk = btsearch_keyval(DBL,
-                &cur_ino,
+            DAT *lnk = btsearch_inode_keyval(DBL,
+                cur_ino, &cur_ino,
                 sizeof(unsigned long long),
-                NULL, 0, NOLOCK);
+                NULL, 0, true);
             if (lnk) {
                 DINOINO dino;
                 DAT *nm;
                 memcpy(&dino, lnk->data,
                        lnk->size);
                 DATfree(lnk);
-                nm = btsearch_keyval(DBL,
-                    &dino, sizeof(DINOINO),
-                    NULL, 0, NOLOCK);
+                nm = btsearch_inode_keyval(DBL,
+                    dino.inode, &dino,
+                    sizeof(DINOINO),
+                    NULL, 0, true);
                 if (nm) {
                     components[depth] =
                         s_zmalloc(nm->size + 1);
@@ -1855,12 +2589,10 @@ char *inode_to_path(unsigned long long inode)
                     ddstatfree(ddstat);
                 } else {
                     ddstatfree(ddstat);
-                    release_bdb_lock();
                     goto fail;
                 }
             } else {
                 ddstatfree(ddstat);
-                release_bdb_lock();
                 goto fail;
             }
         } else {
@@ -1870,59 +2602,65 @@ char *inode_to_path(unsigned long long inode)
             ddstatfree(ddstat);
         }
 
-        /*
-         * Find the parent: scan DBDIRENT looking
-         * for a directory that contains cur_ino as
-         * a child.
-         */
+        /* Find parent: scan all shards' DBDIRENT */
         found = 0;
-        ret = mdb_cursor_open(write_txn,
-                              dbi_dbdirent, &cur);
-        if (ret != 0) {
-            release_bdb_lock();
-            goto fail;
-        }
-
-        ret = mdb_cursor_get(cur, &mkey, &mdata,
-                             MDB_FIRST);
-        while (ret == 0) {
-            if (mdata.mv_size
-                == sizeof(unsigned long long)) {
-                unsigned long long child_ino;
-                memcpy(&child_ino, mdata.mv_data,
-                       sizeof(unsigned long long));
-                if (child_ino == cur_ino) {
-                    unsigned long long key_ino;
-                    memcpy(&key_ino, mkey.mv_data,
-                        sizeof(unsigned long long));
-                    if (key_ino != cur_ino) {
-                        parent_ino = key_ino;
-                        found = 1;
-                        break;
+        for (shard = 0;
+             shard < config->lmdb_db_count
+             && !found; shard++) {
+            bdb_lock_shard(shard,
+                (char *) __PRETTY_FUNCTION__);
+            ret = mdb_cursor_open(
+                      write_txn[shard],
+                      dbi_dbdirent[shard], &cur);
+            if (ret != 0) {
+                release_bdb_lock_shard(shard);
+                goto fail;
+            }
+            ret = mdb_cursor_get(cur, &mkey,
+                                 &mdata,
+                                 MDB_FIRST);
+            while (ret == 0) {
+                if (mdata.mv_size
+                    == sizeof(unsigned long long)){
+                    unsigned long long child_ino;
+                    memcpy(&child_ino,
+                           mdata.mv_data,
+                           sizeof(
+                             unsigned long long));
+                    if (child_ino == cur_ino) {
+                        unsigned long long key_ino;
+                        memcpy(&key_ino,
+                               mkey.mv_data,
+                               sizeof(
+                                 unsigned
+                                 long long));
+                        if (key_ino != cur_ino) {
+                            parent_ino = key_ino;
+                            found = 1;
+                            break;
+                        }
                     }
                 }
+                ret = mdb_cursor_get(cur, &mkey,
+                                     &mdata,
+                                     MDB_NEXT);
             }
-            ret = mdb_cursor_get(cur, &mkey, &mdata,
-                                 MDB_NEXT);
+            mdb_cursor_close(cur);
+            release_bdb_lock_shard(shard);
         }
-        mdb_cursor_close(cur);
 
-        if (!found) {
-            /* Probably reached root indirectly */
+        if (!found)
             break;
-        }
         cur_ino = parent_ino;
     }
-
-    release_bdb_lock();
 
     if (depth == 0)
         return s_strdup("/");
 
-    /* Build path from components (reverse order) */
-    total_len = 1;  /* leading '/' */
+    total_len = 1;
     for (idx = depth - 1; idx >= 0; idx--)
-        total_len += strlen(components[idx]) + 1;
+        total_len +=
+            strlen(components[idx]) + 1;
 
     result = s_malloc(total_len + 1);
     result[0] = 0;
@@ -1961,14 +2699,17 @@ size_t fs_readdir_ll(fuse_req_t req,
     size_t entsize;
     off_t idx = 0;
     char *bname;
+    int dir_shard = inode_to_shard(dir_ino);
 
     FUNC;
-    bdb_lock((char *) __PRETTY_FUNCTION__);
+    bdb_lock_shard(dir_shard,
+        (char *) __PRETTY_FUNCTION__);
 
-    ret = mdb_cursor_open(write_txn,
-                          dbi_dbdirent, &cur);
+    ret = mdb_cursor_open(
+              write_txn[dir_shard],
+              dbi_dbdirent[dir_shard], &cur);
     if (ret != 0) {
-        release_bdb_lock();
+        release_bdb_lock_shard(dir_shard);
         return 0;
     }
 
@@ -1983,14 +2724,51 @@ size_t fs_readdir_ll(fuse_req_t req,
             memcpy(&child_ino, mdata.mv_data,
                    sizeof(unsigned long long));
 
-            /* Skip self-referencing entries */
             if (child_ino == dir_ino)
                 goto next_entry;
 
-            filedata = search_dbdata(DBP,
-                &child_ino,
+            /* Release dir_shard lock to
+             * call search_inode_dbdata (which
+             * acquires the child's shard lock).
+             */
+            mdb_cursor_close(cur);
+            release_bdb_lock_shard(dir_shard);
+
+            filedata = search_inode_dbdata(DBP,
+                child_ino, &child_ino,
                 sizeof(unsigned long long),
-                NOLOCK);
+                true);
+
+            /* Re-acquire dir_shard lock
+             * and cursor position.
+             */
+            bdb_lock_shard(dir_shard,
+                (char *) __PRETTY_FUNCTION__);
+            ret = mdb_cursor_open(
+                      write_txn[dir_shard],
+                      dbi_dbdirent[dir_shard],
+                      &cur);
+            if (ret != 0) {
+                release_bdb_lock_shard(
+                    dir_shard);
+                if (filedata) DATfree(filedata);
+                break;
+            }
+            mkey.mv_data = &dir_ino;
+            mkey.mv_size =
+                sizeof(unsigned long long);
+            /* Restore position */
+            mdata.mv_data = &child_ino;
+            mdata.mv_size =
+                sizeof(unsigned long long);
+            if (mdb_cursor_get(cur, &mkey,
+                               &mdata,
+                               MDB_GET_BOTH)
+                    != 0) {
+                if (filedata) DATfree(filedata);
+                break;
+            }
+
             if (filedata == NULL)
                 goto next_entry;
 
@@ -2006,7 +2784,6 @@ size_t fs_readdir_ll(fuse_req_t req,
                 goto next_entry;
             }
 
-            /* Skip entries before 'off' */
             if (idx < off) {
                 idx++;
                 s_free(bname);
@@ -2023,58 +2800,80 @@ size_t fs_readdir_ll(fuse_req_t req,
 
             s_free(bname);
 
-            /*
-             * If hardlink (empty filename), get
-             * the link name from DBL.
-             */
             if (ddstat->filename[0] == 0) {
                 DINOINO dinoino;
-                MDB_cursor *lcur;
-                MDB_val lkey, ldata;
-                int lret;
+                DAT *lnk;
 
                 dinoino.dirnode = dir_ino;
                 dinoino.inode =
                     ddstat->stbuf.st_ino;
-                lret = mdb_cursor_open(
-                    write_txn, dbi_dbl, &lcur);
-                if (lret == 0) {
-                    lkey.mv_data = &dinoino;
-                    lkey.mv_size =
-                        sizeof(DINOINO);
-                    lret = mdb_cursor_get(
-                        lcur, &lkey, &ldata,
-                        MDB_SET_KEY);
-                    if (lret == 0) {
-                        /* Re-add with the right
-                           name */
-                        char linkname[257];
-                        size_t nlen =
-                            ldata.mv_size < 256
-                            ? ldata.mv_size : 256;
-                        memcpy(linkname,
-                               ldata.mv_data,
-                               nlen);
-                        linkname[nlen] = 0;
-                        /* Recalculate entsize */
-                        buf_used -= entsize;
-                        entsize =
-                            fuse_add_direntry(
-                                req,
-                                buf + buf_used,
-                                bufsize - buf_used,
-                                linkname, &stbuf,
-                                idx + 1);
-                    }
-                    mdb_cursor_close(lcur);
+
+                mdb_cursor_close(cur);
+                release_bdb_lock_shard(
+                    dir_shard);
+
+                lnk = btsearch_inode_keyval(DBL,
+                    dinoino.inode, &dinoino,
+                    sizeof(DINOINO),
+                    NULL, 0, true);
+
+                bdb_lock_shard(dir_shard,
+                    (char *) __PRETTY_FUNCTION__);
+                ret = mdb_cursor_open(
+                          write_txn[dir_shard],
+                          dbi_dbdirent[dir_shard],
+                          &cur);
+                if (ret != 0) {
+                    if (lnk) DATfree(lnk);
+                    ddstatfree(ddstat);
+                    release_bdb_lock_shard(
+                        dir_shard);
+                    break;
+                }
+
+                /* Reposition cursor at current
+                 * entry so MDB_NEXT_DUP works
+                 * after the hardlink lookup.
+                 */
+                mkey.mv_data = &dir_ino;
+                mkey.mv_size =
+                    sizeof(unsigned long long);
+                mdata.mv_data = &child_ino;
+                mdata.mv_size =
+                    sizeof(unsigned long long);
+                if (mdb_cursor_get(cur, &mkey,
+                                   &mdata,
+                                   MDB_GET_BOTH)
+                        != 0) {
+                    if (lnk) DATfree(lnk);
+                    ddstatfree(ddstat);
+                    release_bdb_lock_shard(
+                        dir_shard);
+                    break;
+                }
+
+                if (lnk) {
+                    char linkname[257];
+                    size_t nlen =
+                        lnk->size < 256
+                        ? lnk->size : 256;
+                    memcpy(linkname,
+                           lnk->data, nlen);
+                    linkname[nlen] = 0;
+                    DATfree(lnk);
+                    buf_used -= entsize;
+                    entsize = fuse_add_direntry(
+                        req, buf + buf_used,
+                        bufsize - buf_used,
+                        linkname, &stbuf,
+                        idx + 1);
                 }
             }
             ddstatfree(ddstat);
 
-            if (entsize > bufsize - buf_used) {
-                /* Buffer full */
+            if (entsize > bufsize - buf_used)
                 break;
-            }
+
             buf_used += entsize;
             idx++;
 
@@ -2084,7 +2883,7 @@ size_t fs_readdir_ll(fuse_req_t req,
                          &mdata, MDB_NEXT_DUP));
     }
     mdb_cursor_close(cur);
-    release_bdb_lock();
+    release_bdb_lock_shard(dir_shard);
     EFUNC;
     return buf_used;
 }

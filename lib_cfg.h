@@ -64,6 +64,7 @@ struct configdata {
     int safe_down;
     int tuneforspeed;
     unsigned long long lmdb_mapsize;
+    int lmdb_db_count;  /* 1, 2, 4, 8 or 16 */
     int nospace;
     int chunk_depth;
     int reclaim;

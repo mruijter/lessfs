@@ -272,6 +272,25 @@ The default is 10GB (10737418240). Increase this value when the
 filesystem will store a very large number of files or blocks.
 This option is only valid when lessfs is compiled with LMDB support
 (configure --with-lmdb).
+.IP LMDB_DB_COUNT=1
+The number of independent LMDB environments used
+for inode-keyed metadata (file stats, directory
+entries, hard links, symlinks, and block maps).
+Valid values are 1, 2, 4, 8, and 16. Each
+environment covers an equal share of the inode
+space, determined by the low nibble of the inode
+number, allowing concurrent writers to proceed
+without serialising on a single LMDB write
+transaction. Hash-keyed databases (block data,
+block usage, free list) always reside in
+environment 0.
+The default is 1, which is fully backward
+compatible with existing on-disk layouts.
+WARNING: this value is fixed at format time.
+Changing it on an existing filesystem requires
+running mklessfs again (data loss).
+This option is only valid when lessfs is compiled
+with LMDB support (configure --with-lmdb).
 .SH SEE ALSO
 .BR replogfile (1)
 .SH COMPRESSION STATISTICS
@@ -297,7 +316,7 @@ Email bug reports to
 .BR mruijter@gmail.com .
 Be sure to include the word ``lessfsbug'' somewhere in the ``Subject:'' field.
 .SH COPYRIGHT
-Copyright (C) 2008-2010  Mark Ruijter
+Copyright (C) 2008-2026  Mark Ruijter
 .PP
 You can redistribute lessfs and/or modify it
 under the terms of either

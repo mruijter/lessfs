@@ -55,7 +55,8 @@ int fs_readdir(const char *, void *, fuse_fill_dir_t,
                off_t, struct fuse_file_info *);
 void fs_read_hardlink(struct stat, DDSTAT *, void *,
                       fuse_fill_dir_t,
-                      struct fuse_file_info *);
+                      struct fuse_file_info *,
+                      int held_shard);
 void bdb_restart_truncation(void);
 unsigned long long get_offset_fast(unsigned long long);
 INUSE *get_offset_reclaim(unsigned long long,
@@ -81,4 +82,32 @@ void bdb_stat(void);
 void abort_transactions(void);
 
 char *inode_to_path(unsigned long long);
+int inode_to_shard(unsigned long long);
+void bdb_lock_shard(int, const char *);
+void release_bdb_lock_shard(int);
+DAT *search_inode_dbdata(int,
+    unsigned long long, void *, int, bool);
+void bin_write_inode_dbdata(int,
+    unsigned long long,
+    void *, int, void *, int);
+void delete_inode_key(int,
+    unsigned long long,
+    void *, int, const char *);
+void btbin_write_inode_dup(int,
+    unsigned long long,
+    void *, int, void *, int, bool);
+void btbin_write_inode_dbdata(int,
+    unsigned long long,
+    void *, int, void *, int);
+int bt_inode_entry_exists(int,
+    unsigned long long,
+    void *, int, void *, int);
+DAT *btsearch_inode_keyval(int,
+    unsigned long long,
+    void *, int, void *, int, bool);
+int btdelete_inode_curkey(int,
+    unsigned long long,
+    void *, int, void *, int, const char *);
+int count_dirlinks_inode(void *, int,
+    unsigned long long);
 #endif /* LIB_LMDB_H */

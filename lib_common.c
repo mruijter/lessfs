@@ -307,7 +307,8 @@ int fs_readlink(const char *path, char *buf, size_t size)
     if (0 == inode)
         return (-ENOENT);
 
-    data = search_dbdata(DBS, &inode, sizeof(unsigned long long), LOCK);
+    data = search_inode_dbdata(DBS, inode, &inode,
+                    sizeof(unsigned long long), LOCK);
     if (NULL == data) {
         res = -ENOENT;
     } else {
@@ -1170,8 +1171,9 @@ int path_from_cache(char *path, struct stat *stbuf)
             // We always have to fetch hardlinks from disk.
             if (stbuf->st_nlink > 1) {
                 statdata =
-                    search_dbdata(DBP, &stbuf->st_ino,
-                                  sizeof(unsigned long long), LOCK);
+                    search_inode_dbdata(DBP, stbuf->st_ino,
+                    &stbuf->st_ino,
+                    sizeof(unsigned long long), LOCK);
                 if (NULL == statdata) {
                     release_cachep2i_lock();
                     return (res);
@@ -1363,12 +1365,14 @@ void write_file_ent(const char *filename, unsigned long long inode,
 
     ddbuf = create_ddbuf(stbuf, bname, 0);
     LDEBUG("write_file_ent : write dbp inode %llu", inode);
-    bin_write_dbdata(DBP, &inode, sizeof(inode), ddbuf->data, ddbuf->size);
+    bin_write_inode_dbdata(DBP, inode, &inode, sizeof(inode),
+                       ddbuf->data, ddbuf->size);
     cache_p2i((char *) filename, &stbuf);
     DATfree(ddbuf);
     if (linkdest) {
-        bin_write_dbdata(DBS, &inode, sizeof(unsigned long long), linkdest,
-                         strlen(linkdest) + 1);
+        bin_write_inode_dbdata(DBS, inode, &inode,
+                       sizeof(unsigned long long),
+                       linkdest, strlen(linkdest) + 1);
     }
     if (0 == strcmp(bname, "."))
         isdot = 1;
@@ -1376,12 +1380,14 @@ void write_file_ent(const char *filename, unsigned long long inode,
         isdot = 1;
   recurse:
     if (S_ISDIR(mode) && isdot != 1) {
-        btbin_write_dup(DBDIRENT, &stbuf.st_ino, sizeof(stbuf.st_ino),
-                        &inode, sizeof(inode), LOCK);
+        btbin_write_inode_dup(DBDIRENT, stbuf.st_ino,
+    &stbuf.st_ino, sizeof(stbuf.st_ino),
+    &inode, sizeof(inode), LOCK);
     } else {
         res = dbstat(parentdir, &dirstat, 1);
-        btbin_write_dup(DBDIRENT, &dirstat.st_ino, sizeof(dirstat.st_ino),
-                        &inode, sizeof(inode), LOCK);
+        btbin_write_inode_dup(DBDIRENT, dirstat.st_ino,
+    &dirstat.st_ino, sizeof(dirstat.st_ino),
+    &inode, sizeof(inode), LOCK);
     }
     if (S_ISDIR(mode) && !isdot && !isrootdir) {
         // Create the link inode to the previous directory
@@ -1397,8 +1403,9 @@ void write_file_ent(const char *filename, unsigned long long inode,
 
 void write_nfi(unsigned long long nextinode)
 {
-    bin_write_dbdata(DBP, (unsigned char *) "NFI", strlen("NFI"),
-                     (unsigned char *) &nextinode, sizeof(nextinode));
+    bin_write_inode_dbdata(DBP, 0,
+    (unsigned char *) "NFI", strlen("NFI"),
+    (unsigned char *) &nextinode, sizeof(nextinode));
     return;
 }
 
@@ -1474,8 +1481,9 @@ void formatfs()
         loghash("store passwd as hash", stiger);
         memcpy(&crypto.passwd, stiger, config->hashlen);
         memcpy(&crypto.iv, config->iv, 8);
-        bin_write_dbdata(DBP, &nextinode, sizeof(unsigned long long),
-                         &crypto, sizeof(CRYPTO));
+        bin_write_inode_dbdata(DBP, nextinode, &nextinode,
+                       sizeof(unsigned long long),
+                       &crypto, sizeof(CRYPTO));
         free(stiger);
     }
 #endif
@@ -1694,7 +1702,9 @@ void delete_inuse(unsigned char *stiger)
 void delete_dbb(INOBNO * inobno)
 {
     LDEBUG("delete_dbb:  %llu-%llu", inobno->inode, inobno->blocknr);
-    delete_key(DBB, inobno, sizeof(INOBNO), (char *) __PRETTY_FUNCTION__);
+    delete_inode_key(DBB, inobno->inode, inobno,
+                 sizeof(INOBNO),
+                 (char *) __PRETTY_FUNCTION__);
     return;
 }
 
@@ -1829,8 +1839,9 @@ int update_filesize_cache(struct stat *stbuf, off_t size)
     } else {
         ddstatfree(ddstat);
         dskdata =
-            search_dbdata(DBP, &stbuf->st_ino, sizeof(unsigned long long),
-                          LOCK);
+            search_inode_dbdata(DBP, stbuf->st_ino,
+    &stbuf->st_ino,
+    sizeof(unsigned long long), LOCK);
         if (NULL == dskdata) {
             release_meta_lock();
             return (-ENOENT);
@@ -1849,8 +1860,9 @@ int update_filesize_cache(struct stat *stbuf, off_t size)
         dskdata =
             create_ddbuf(ddstat->stbuf, ddstat->filename,
                          ddstat->real_size);
-        bin_write_dbdata(DBP, &stbuf->st_ino, sizeof(unsigned long long),
-                         (void *) dskdata->data, dskdata->size);
+        bin_write_inode_dbdata(DBP, stbuf->st_ino, &stbuf->st_ino,
+                       sizeof(unsigned long long),
+                       (void *) dskdata->data, dskdata->size);
         DATfree(dskdata);
     }
     ddstatfree(ddstat);
@@ -1949,9 +1961,10 @@ void hash_update_filesize(MEMDDSTAT * memddstat, unsigned long long inode)
             create_ddbuf(memddstat->stbuf, memddstat->filename,
                          memddstat->real_size);
     }
-    bin_write_dbdata(DBP, &inode,
-                     sizeof(unsigned long long), (void *) ddbuf->data,
-                     ddbuf->size);
+    bin_write_inode_dbdata(DBP, inode, &inode,
+                       sizeof(unsigned long long),
+                       (void *) ddbuf->data,
+                       ddbuf->size);
     cache_p2i(memddstat->filename, &memddstat->stbuf);
     DATfree(ddbuf);
     return;
@@ -1959,13 +1972,22 @@ void hash_update_filesize(MEMDDSTAT * memddstat, unsigned long long inode)
 
 DAT *check_block_exists(INOBNO * inobno)
 {
-    if (!config->deduplication) {
-        return NULL;  // Force new block creation when deduplication is disabled
-    }
-    // Original logic continues...
     DAT *data = NULL;
+    if (!config->deduplication)
+        return NULL;
     FUNC;
-    data = search_dbdata(DBB, inobno, sizeof(INOBNO), LOCK);
+    /* FILE_IO/CHUNK_IO writes DBB to shard 0;
+     * use matching shard-0 lookup.  LMDB mode
+     * uses per-inode shard. */
+    if (config->blockdata_io_type == FILE_IO ||
+        config->blockdata_io_type == CHUNK_IO) {
+        data = search_dbdata(DBB, inobno,
+                    sizeof(INOBNO), LOCK);
+    } else {
+        data = search_inode_dbdata(
+                    DBB, inobno->inode, inobno,
+                    sizeof(INOBNO), LOCK);
+    }
     EFUNC;
     return data;
 }
@@ -2005,8 +2027,9 @@ int db_unlink_file(const char *path)
     res = dbstat(dname, &dirst, 1);
     if (S_ISLNK(st.st_mode) && haslinks == 1) {
         LDEBUG("unlink symlink %s inode %llu", path, inode);
-        delete_key(DBS, &inode, sizeof(unsigned long long),
-                   (char *) __PRETTY_FUNCTION__);
+        delete_inode_key(DBS, inode, &inode,
+                 sizeof(unsigned long long),
+                 (char *) __PRETTY_FUNCTION__);
         LDEBUG("unlink symlink done %s", path);
     }
     inobno.inode = inode;
@@ -2018,21 +2041,21 @@ int db_unlink_file(const char *path)
     if (haslinks == 1) {
         if (0 !=
             (res =
-             btdelete_curkey(DBDIRENT, &dirst.st_ino,
-                             sizeof(unsigned long long), &inode,
-                             sizeof(unsigned long long),
-                             (char *) __PRETTY_FUNCTION__))) {
+             btdelete_inode_curkey(DBDIRENT, dirst.st_ino,
+    &dirst.st_ino, sizeof(unsigned long long),
+    &inode, sizeof(unsigned long long),
+    (char *) __PRETTY_FUNCTION__))) {
             s_free(bname);
             s_free(dname);
             return (res);
         }
-        delete_key(DBP, (unsigned char *) &inode,
-                   sizeof(unsigned long long),
-                   (char *) __PRETTY_FUNCTION__);
+        delete_inode_key(DBP, inode, &inode,
+                 sizeof(unsigned long long),
+                 (char *) __PRETTY_FUNCTION__);
     } else {
         dataptr =
-            search_dbdata(DBP, (unsigned char *) &inode,
-                          sizeof(unsigned long long), LOCK);
+            search_inode_dbdata(DBP, inode, &inode,
+                    sizeof(unsigned long long), LOCK);
         if (dataptr == NULL) {
             die_dataerr("Failed to find file %llu", inode);
         }
@@ -2044,51 +2067,61 @@ int db_unlink_file(const char *path)
         ddstat->stbuf.st_mtim.tv_nsec = 0;
         dinoino.dirnode = dirst.st_ino;
         dinoino.inode = ddstat->stbuf.st_ino;
-        dir_links = count_dirlinks(&dinoino, sizeof(DINOINO));
+        dir_links = count_dirlinks_inode(&dinoino, sizeof(DINOINO),
+    dinoino.inode);
         res =
-            btdelete_curkey(DBL, &dinoino, sizeof(DINOINO), bname,
-                            strlen(bname), (char *) __PRETTY_FUNCTION__);
-        btdelete_curkey(DBL, &ddstat->stbuf.st_ino,
-                        sizeof(unsigned long long), &dinoino,
-                        sizeof(DINOINO), (char *) __PRETTY_FUNCTION__);
+            btdelete_inode_curkey(DBL, dinoino.inode,
+    &dinoino, sizeof(DINOINO), bname,
+    strlen(bname), (char *) __PRETTY_FUNCTION__);
+        btdelete_inode_curkey(DBL, ddstat->stbuf.st_ino,
+    &ddstat->stbuf.st_ino, sizeof(unsigned long long),
+    &dinoino, sizeof(DINOINO),
+    (char *) __PRETTY_FUNCTION__);
 // Restore to regular file settings and clean up.
         if (ddstat->stbuf.st_nlink == 1) {
             vdirnode =
-                btsearch_keyval(DBL, &ddstat->stbuf.st_ino,
-                                sizeof(unsigned long long), NULL, 0, LOCK);
+    btsearch_inode_keyval(DBL, ddstat->stbuf.st_ino,
+        &ddstat->stbuf.st_ino,
+        sizeof(unsigned long long),
+        NULL, 0, LOCK);
             memcpy(&dinoino, vdirnode->data, vdirnode->size);
             DATfree(vdirnode);
             fname =
-                btsearch_keyval(DBL, &dinoino, sizeof(DINOINO),
-                                NULL, 0, LOCK);
+    btsearch_inode_keyval(DBL, dinoino.inode,
+        &dinoino, sizeof(DINOINO),
+        NULL, 0, LOCK);
             memcpy(&ddstat->filename, fname->data, fname->size);
             DATfree(fname);
-            btdelete_curkey(DBL, &dinoino, sizeof(DINOINO),
-                            ddstat->filename, strlen(ddstat->filename),
-                            (char *) __PRETTY_FUNCTION__);
-            btdelete_curkey(DBL, &ddstat->stbuf.st_ino,
-                            sizeof(unsigned long long), &dinoino,
-                            sizeof(DINOINO), (char *) __PRETTY_FUNCTION__);
-            btdelete_curkey(DBL, &inode, sizeof(unsigned long long),
-                            &dinoino, sizeof(DINOINO),
-                            (char *) __PRETTY_FUNCTION__);
+            btdelete_inode_curkey(DBL, dinoino.inode,
+    &dinoino, sizeof(DINOINO),
+    ddstat->filename, strlen(ddstat->filename),
+    (char *) __PRETTY_FUNCTION__);
+            btdelete_inode_curkey(DBL, ddstat->stbuf.st_ino,
+    &ddstat->stbuf.st_ino, sizeof(unsigned long long),
+    &dinoino, sizeof(DINOINO),
+    (char *) __PRETTY_FUNCTION__);
+            btdelete_inode_curkey(DBL, inode,
+    &inode, sizeof(unsigned long long),
+    &dinoino, sizeof(DINOINO),
+    (char *) __PRETTY_FUNCTION__);
             res = 0;
         }
         if (dir_links == 1) {
             if (0 !=
                 (res =
-                 btdelete_curkey(DBDIRENT, &dirst.st_ino,
-                                 sizeof(unsigned long long), &inode,
-                                 sizeof(unsigned long long),
-                                 (char *) __PRETTY_FUNCTION__))) {
+                 btdelete_inode_curkey(DBDIRENT, dirst.st_ino,
+    &dirst.st_ino, sizeof(unsigned long long),
+    &inode, sizeof(unsigned long long),
+    (char *) __PRETTY_FUNCTION__))) {
                 die_dataerr("unlink_file : Failed to delete record.");
             }
         }
         ddbuf =
             create_ddbuf(ddstat->stbuf, ddstat->filename,
                          ddstat->real_size);
-        bin_write_dbdata(DBP, &inode, sizeof(unsigned long long),
-                         (void *) ddbuf->data, ddbuf->size);
+        bin_write_inode_dbdata(DBP, inode, &inode,
+                       sizeof(unsigned long long),
+                       (void *) ddbuf->data, ddbuf->size);
         DATfree(dataptr);
         DATfree(ddbuf);
         ddstatfree(ddstat);
@@ -2253,8 +2286,9 @@ unsigned int db_commit_block(unsigned char *dbdata,
     update_inuse(stiger, inuse);
     LDEBUG("db_commit_block : dbb %llu-%llu", inobno.inode,
            inobno.blocknr);
-    bin_write_dbdata(DBB, (char *) &inobno, sizeof(INOBNO), stiger,
-                     config->hashlen);
+    bin_write_inode_dbdata(DBB, inobno.inode, &inobno,
+                       sizeof(INOBNO), stiger,
+                       config->hashlen);
     delete_hash_note(stiger);
     free(stiger);
     return (ret);
@@ -2280,7 +2314,8 @@ void partial_truncate_block(unsigned long long inode,
     inobno.inode = inode;
     inobno.blocknr = blocknr;
 
-    data = search_dbdata(DBB, &inobno, sizeof(INOBNO), LOCK);
+    data = search_inode_dbdata(DBB, inobno.inode, &inobno,
+                    sizeof(INOBNO), LOCK);
     if (NULL == data) {
         LDEBUG("Deletion of non existent block?");
         return;
@@ -2357,7 +2392,8 @@ void *tc_truncate_worker(void *threadarg)
             break;
         }
         inobno.blocknr = lastblocknr;
-        data = search_dbdata(DBB, &inobno, sizeof(INOBNO), LOCK);
+        data = search_inode_dbdata(DBB, inobno.inode, &inobno,
+                    sizeof(INOBNO), LOCK);
         if (NULL == data) {
             LDEBUG
                 ("Deletion of non existent block inode : %llu, blocknr %llu",
@@ -2509,7 +2545,8 @@ int update_stat(char *path, struct stat *stbuf)
         DATfree(ddbuf);
         goto unlock_return;
     }
-    dataptr = search_dbdata(DBP, &inode, sizeof(unsigned long long), LOCK);
+    dataptr = search_inode_dbdata(DBP, inode, &inode,
+                    sizeof(unsigned long long), LOCK);
     if (dataptr == NULL) {
         ret = -ENOENT;
         goto unlock_return;
@@ -2518,8 +2555,9 @@ int update_stat(char *path, struct stat *stbuf)
     memcpy(&ddstat->stbuf, stbuf, sizeof(struct stat));
     ddbuf =
         create_ddbuf(ddstat->stbuf, ddstat->filename, ddstat->real_size);
-    bin_write_dbdata(DBP, &inode, sizeof(unsigned long long),
-                     (void *) ddbuf->data, ddbuf->size);
+    bin_write_inode_dbdata(DBP, inode, &inode,
+    sizeof(unsigned long long),
+    (void *) ddbuf->data, ddbuf->size);
     DATfree(dataptr);
     ddstatfree(ddstat);
     DATfree(ddbuf);
@@ -2716,7 +2754,8 @@ void update_meta(unsigned long long inode, unsigned long size, int sign)
     if (data == NULL) {
         LDEBUG("meta update on inode not in cache");
         statdata =
-            search_dbdata(DBP, &inode, sizeof(unsigned long long), LOCK);
+            search_inode_dbdata(DBP, inode, &inode,
+                    sizeof(unsigned long long), LOCK);
         if (NULL == statdata)
             goto bailout;
         ddstat = value_to_ddstat(statdata);
@@ -2731,8 +2770,9 @@ void update_meta(unsigned long long inode, unsigned long size, int sign)
         ddbuf =
             create_ddbuf(ddstat->stbuf, ddstat->filename,
                          ddstat->real_size);
-        bin_write_dbdata(DBP, &inode, sizeof(unsigned long long),
-                         ddbuf->data, ddbuf->size);
+        bin_write_inode_dbdata(DBP, inode, &inode,
+                       sizeof(unsigned long long),
+                       ddbuf->data, ddbuf->size);
 //       cache_p2i(ddstat->filename, &ddstat->stbuf, NOLOCK);
         DATfree(statdata);
         ddstatfree(ddstat);
@@ -2873,8 +2913,9 @@ void tc_write_cache(CCACHEDTA * ccachedta, INOBNO * inobno)
     }
     inuse++;
     update_inuse((unsigned char *) &ccachedta->hash, inuse);
-    bin_write_dbdata(DBB, (char *) inobno, sizeof(INOBNO), ccachedta->hash,
-                     config->hashlen);
+    bin_write_inode_dbdata(DBB, inobno->inode, inobno,
+                       sizeof(INOBNO), ccachedta->hash,
+                       config->hashlen);
     delete_hash_note((unsigned char *) &ccachedta->hash);
     ccachedta->dirty = 0;
     ccachedta->pending = 0;
@@ -2888,7 +2929,8 @@ void db_delete_stored(INOBNO * inobno)
     DAT *data;
 
     unsigned long long inuse;
-    data = search_dbdata(DBB, inobno, sizeof(INOBNO), LOCK);
+    data = search_inode_dbdata(DBB, inobno->inode, inobno,
+                    sizeof(INOBNO), LOCK);
     if (NULL == data)
         return;
     hash = data->data;
@@ -3056,8 +3098,8 @@ int fs_link(char *from, char *to)
     release_meta_lock();
     /* Preserve real_size from existing DBP entry */
     {
-        DAT *old_data = search_dbdata(DBP, &inode,
-            sizeof(unsigned long long), LOCK);
+        DAT *old_data = search_inode_dbdata(DBP, inode,
+    &inode, sizeof(unsigned long long), LOCK);
         unsigned long long saved_real_size = 0;
         if (old_data) {
             DDSTAT *old_dd = value_to_ddstat(old_data);
@@ -3070,24 +3112,27 @@ int fs_link(char *from, char *to)
     }
     LDEBUG("fs_link : update links on %llu"
            " to %i", inode, stbuf.st_nlink);
-    bin_write_dbdata(DBP, &inode,
+    bin_write_inode_dbdata(DBP, inode, &inode,
         sizeof(unsigned long long),
         ddbuf->data, ddbuf->size);
     DATfree(ddbuf);
 /* Link dest filename inode to dest directory if it does not exist*/
     if (0 ==
-        bt_entry_exists(DBDIRENT, &todirnode, sizeof(unsigned long long),
-                        &inode, sizeof(unsigned long long))) {
+        bt_inode_entry_exists(DBDIRENT, todirnode,
+    &todirnode, sizeof(unsigned long long),
+    &inode, sizeof(unsigned long long))) {
         LDEBUG("fs_link : write link %llu : %llu", todirnode, inode);
-        btbin_write_dup(DBDIRENT, &todirnode, sizeof(unsigned long long),
-                        &inode, sizeof(unsigned long long), LOCK);
+        btbin_write_inode_dup(DBDIRENT, todirnode,
+    &todirnode, sizeof(unsigned long long),
+    &inode, sizeof(unsigned long long), LOCK);
     }
 
 /* Link some more, hardlink a symlink. */
     if (S_ISLNK(stbuf.st_mode)) {
         LDEBUG("fs_link : hardlink a symlink");
         symdata =
-            search_dbdata(DBS, &inode, sizeof(unsigned long long), LOCK);
+            search_inode_dbdata(DBS, inode, &inode,
+                    sizeof(unsigned long long), LOCK);
         if (NULL == symdata)
             die_dataerr("Unable to read symlink");
         DATfree(symdata);
@@ -3097,19 +3142,21 @@ int fs_link(char *from, char *to)
     dinoino.inode = stbuf.st_ino;
     LDEBUG("A. fs_link : write link %llu-%llu : %s", tobuf.st_ino,
            stbuf.st_ino, bto);
-    btbin_write_dup(DBL, &dinoino, sizeof(DINOINO), bto, strlen(bto),
-                    LOCK);
-    btbin_write_dup(DBL, &stbuf.st_ino, sizeof(unsigned long long),
-                    &dinoino, sizeof(DINOINO), LOCK);
+    btbin_write_inode_dup(DBL, dinoino.inode,
+    &dinoino, sizeof(DINOINO), bto, strlen(bto), LOCK);
+    btbin_write_inode_dup(DBL, stbuf.st_ino,
+    &stbuf.st_ino, sizeof(unsigned long long),
+    &dinoino, sizeof(DINOINO), LOCK);
 
 /* Write Lfrominode_inode : from filename */
     dinoino.dirnode = frombuf.st_ino;
     dinoino.inode = stbuf.st_ino;
     if (stbuf.st_nlink == 2) {
-        btbin_write_dup(DBL, &dinoino, sizeof(DINOINO), bfrom,
-                        strlen(bfrom), LOCK);
-        btbin_write_dup(DBL, &stbuf.st_ino, sizeof(unsigned long long),
-                        &dinoino, sizeof(DINOINO), LOCK);
+        btbin_write_inode_dup(DBL, dinoino.inode,
+    &dinoino, sizeof(DINOINO), bfrom, strlen(bfrom), LOCK);
+        btbin_write_inode_dup(DBL, stbuf.st_ino,
+    &stbuf.st_ino, sizeof(unsigned long long),
+    &dinoino, sizeof(DINOINO), LOCK);
     }
     res = update_parent_time(todir, 0);
     s_free(todir);
@@ -3159,19 +3206,23 @@ int fs_rename_link(const char *from, const char *to, struct stat stbuf)
 
     dinoino.dirnode = fromnode;
     dinoino.inode = stbuf.st_ino;
-    btdelete_curkey(DBL, &dinoino, sizeof(DINOINO), bfrom, strlen(bfrom),
-                    (char *) __PRETTY_FUNCTION__);
-    if (count_dirlinks(&dinoino, sizeof(DINOINO)) > 1) {
-        btdelete_curkey(DBDIRENT, &fromnode, sizeof(unsigned long long),
-                        &inode, sizeof(unsigned long long),
-                        (char *) __PRETTY_FUNCTION__);
-        btbin_write_dup(DBDIRENT, &tonode, sizeof(unsigned long long),
-                        &inode, sizeof(unsigned long long), LOCK);
+    btdelete_inode_curkey(DBL, dinoino.inode,
+    &dinoino, sizeof(DINOINO), bfrom, strlen(bfrom),
+    (char *) __PRETTY_FUNCTION__);
+    if (count_dirlinks_inode(&dinoino, sizeof(DINOINO),
+    dinoino.inode) > 1) {
+        btdelete_inode_curkey(DBDIRENT, fromnode,
+    &fromnode, sizeof(unsigned long long),
+    &inode, sizeof(unsigned long long),
+    (char *) __PRETTY_FUNCTION__);
+        btbin_write_inode_dup(DBDIRENT, tonode,
+    &tonode, sizeof(unsigned long long),
+    &inode, sizeof(unsigned long long), LOCK);
     }
     dinoino.dirnode = tonode;
     dinoino.inode = stbuf.st_ino;
-    btbin_write_dup(DBL, &dinoino, sizeof(DINOINO), bto, strlen(bto),
-                    LOCK);
+    btbin_write_inode_dup(DBL, dinoino.inode,
+    &dinoino, sizeof(DINOINO), bto, strlen(bto), LOCK);
     /* Invalidate stale p2i cache for both paths. */
     invalidate_p2i((char *) from);
     invalidate_p2i((char *) to);
@@ -3239,7 +3290,8 @@ int fs_rename(const char *from, const char *to, struct stat stbuf)
     fromdir = s_dirname((char *) from);
     fromdirnode = get_inode(fromdir);
     LDEBUG("fs_rename : bto = %s", bto);
-    dataptr = search_dbdata(DBP, &inode, sizeof(unsigned long long), LOCK);
+    dataptr = search_inode_dbdata(DBP, inode, &inode,
+                    sizeof(unsigned long long), LOCK);
     if (dataptr == NULL) {
         die_dataerr("Failed to find file %llu", inode);
     }
@@ -3248,17 +3300,20 @@ int fs_rename(const char *from, const char *to, struct stat stbuf)
     ddstat->stbuf.st_ctim.tv_sec = thetime;
     ddstat->stbuf.st_ctim.tv_nsec = 0;
     ddbuf = create_ddbuf(ddstat->stbuf, (char *) bto, ddstat->real_size);
-    bin_write_dbdata(DBP, &inode,
-                     sizeof(unsigned long long), (void *) ddbuf->data,
-                     ddbuf->size);
+    bin_write_inode_dbdata(DBP, inode, &inode,
+                       sizeof(unsigned long long),
+                       (void *) ddbuf->data,
+                       ddbuf->size);
     if (fromdirnode != todirnode) {
         LDEBUG("fs_rename : rename inode %llu : %llu to another path %llu",
                inode, fromdirnode, todirnode);
-        btdelete_curkey(DBDIRENT, &fromdirnode, sizeof(unsigned long long),
-                        &inode, sizeof(unsigned long long),
-                        (char *) __PRETTY_FUNCTION__);
-        btbin_write_dup(DBDIRENT, &todirnode, sizeof(unsigned long long),
-                        &inode, sizeof(unsigned long long), LOCK);
+        btdelete_inode_curkey(DBDIRENT, fromdirnode,
+    &fromdirnode, sizeof(unsigned long long),
+    &inode, sizeof(unsigned long long),
+    (char *) __PRETTY_FUNCTION__);
+        btbin_write_inode_dup(DBDIRENT, todirnode,
+    &todirnode, sizeof(unsigned long long),
+    &inode, sizeof(unsigned long long), LOCK);
         /* POSIX: update parent nlink for directory moves */
         if (S_ISDIR(stbuf.st_mode)) {
             update_parent_time(fromdir, -1);
@@ -3312,27 +3367,34 @@ int fs_rmdir(const char *path)
 
     keynode = get_inode(dotstr);
     LDEBUG("inode for %s is %llu", dotstr, keynode);
-    delete_key(DBP, &keynode, sizeof(unsigned long long),
-               (char *) __PRETTY_FUNCTION__);
-    btdelete_curkey(DBDIRENT, &pathnode, sizeof(unsigned long long),
-                    &keynode, sizeof(unsigned long long),
-                    (char *) __PRETTY_FUNCTION__);
+    delete_inode_key(DBP, keynode, &keynode,
+                 sizeof(unsigned long long),
+                 (char *) __PRETTY_FUNCTION__);
+    btdelete_inode_curkey(DBDIRENT, pathnode,
+    &pathnode, sizeof(unsigned long long),
+    &keynode, sizeof(unsigned long long),
+    (char *) __PRETTY_FUNCTION__);
     keynode = get_inode(dotdotstr);
-    delete_key(DBP, &keynode, sizeof(unsigned long long),
-               (char *) __PRETTY_FUNCTION__);
-    btdelete_curkey(DBDIRENT, &pathnode, sizeof(unsigned long long),
-                    &keynode, sizeof(unsigned long long),
-                    (char *) __PRETTY_FUNCTION__);
+    delete_inode_key(DBP, keynode, &keynode,
+                 sizeof(unsigned long long),
+                 (char *) __PRETTY_FUNCTION__);
+    btdelete_inode_curkey(DBDIRENT, pathnode,
+    &pathnode, sizeof(unsigned long long),
+    &keynode, sizeof(unsigned long long),
+    (char *) __PRETTY_FUNCTION__);
 
     dirnode = get_inode(dname);
-    delete_key(DBP, &pathnode, sizeof(unsigned long long),
-               (char *) __PRETTY_FUNCTION__);
-    btdelete_curkey(DBDIRENT, &dirnode, sizeof(unsigned long long),
-                    &pathnode, sizeof(unsigned long long),
-                    (char *) __PRETTY_FUNCTION__);
-    btdelete_curkey(DBDIRENT, &pathnode, sizeof(unsigned long long),
-                    &pathnode, sizeof(unsigned long long),
-                    (char *) __PRETTY_FUNCTION__);
+    delete_inode_key(DBP, pathnode, &pathnode,
+                 sizeof(unsigned long long),
+                 (char *) __PRETTY_FUNCTION__);
+    btdelete_inode_curkey(DBDIRENT, dirnode,
+    &dirnode, sizeof(unsigned long long),
+    &pathnode, sizeof(unsigned long long),
+    (char *) __PRETTY_FUNCTION__);
+    btdelete_inode_curkey(DBDIRENT, pathnode,
+    &pathnode, sizeof(unsigned long long),
+    &pathnode, sizeof(unsigned long long),
+    (char *) __PRETTY_FUNCTION__);
     s_free(dotstr);
     s_free(dotdotstr);
     res = update_parent_time(dname, -1);
@@ -3491,6 +3553,19 @@ void parseconfig(int mklessfs, bool force_optimize)
         sscanf(iv, "%llu", &config->lmdb_mapsize);
         LINFO("LMDB map size set to %llu bytes",
               config->lmdb_mapsize);
+    }
+    config->lmdb_db_count = 1;
+    iv = getenv("LMDB_DB_COUNT");
+    if (iv) {
+        int cnt = atoi(iv);
+        if (cnt == 1 || cnt == 2 || cnt == 4
+                || cnt == 8 || cnt == 16)
+            config->lmdb_db_count = cnt;
+        else
+            die_dataerr("LMDB_DB_COUNT must be "
+                        "1, 2, 4, 8 or 16");
+        LINFO("LMDB shard count = %d",
+              config->lmdb_db_count);
     }
 #endif
     LINFO("config->blockdata = %s", config->blockdata);
@@ -3707,7 +3782,8 @@ void parseconfig(int mklessfs, bool force_optimize)
             stiger =
                 thash(config->passwd, strlen((char *) config->passwd));
             ivdb =
-                search_dbdata(DBP, &pwl, sizeof(unsigned long long), LOCK);
+                search_inode_dbdata(DBP, pwl, &pwl,
+                    sizeof(unsigned long long), LOCK);
             if (NULL == ivdb) {
                 db_close(0);
                 die_dataerr

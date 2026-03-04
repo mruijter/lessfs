@@ -253,7 +253,8 @@ static int lessfs_fgetattr(const char *path,
     release_meta_lock();
 
     /* Fall back to on-disk database */
-    dskdata = search_dbdata(DBP, &inode,
+    dskdata = search_inode_dbdata(DBP, inode,
+                            &inode,
                             sizeof(unsigned long long),
                             LOCK);
     if (dskdata == NULL) {
@@ -684,7 +685,9 @@ static int lessfs_utimens(const char *path,
         DATfree(ddbuf);
     } else {
         dskdata =
-            search_dbdata(DBP, &stbuf.st_ino,
+            search_inode_dbdata(DBP,
+                          (unsigned long long) stbuf.st_ino,
+                          &stbuf.st_ino,
                           sizeof(unsigned long long),
                           LOCK);
         if (dskdata == NULL) {
@@ -704,7 +707,9 @@ static int lessfs_utimens(const char *path,
             create_ddbuf(ddstat->stbuf,
                          ddstat->filename,
                          ddstat->real_size);
-        bin_write_dbdata(DBP, &stbuf.st_ino,
+        bin_write_inode_dbdata(DBP,
+                         (unsigned long long) stbuf.st_ino,
+                         &stbuf.st_ino,
                          sizeof(unsigned long long),
                          (void *) ddbuf->data,
                          ddbuf->size);
@@ -724,7 +729,8 @@ unsigned long long get_real_size(unsigned long long inode)
     DDSTAT *ddstat;
     unsigned long long real_size = 0;
 
-    data = search_dbdata(DBP, &inode, sizeof(unsigned long long), LOCK);
+    data = search_inode_dbdata(DBP, inode, &inode,
+                           sizeof(unsigned long long), LOCK);
     if (NULL == data) {
         return (real_size);
     }

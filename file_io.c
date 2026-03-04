@@ -756,7 +756,8 @@ void file_delete_stored(INOBNO * inobno)
     inuse = file_get_inuse(hash);
     if (NULL == inuse)
         return;
-    delete_dbb(inobno);
+    delete_key(DBB, inobno, sizeof(INOBNO),
+               (char *) __PRETTY_FUNCTION__);
 
     if (inuse->inuse <= 1) {
         if ( config->blockdata_io_type == CHUNK_IO ) {
@@ -832,7 +833,8 @@ void *file_truncate_worker(void *threadarg)
              lastblocknr);
         DATfree(data);
         create_hash_note(stiger);
-        delete_dbb(&inobno);
+        delete_key(DBB, &inobno, sizeof(INOBNO),
+               (char *) __PRETTY_FUNCTION__);
         inuse = file_get_inuse(stiger);
         if (inuse) {
             if (inuse->inuse == 1) {

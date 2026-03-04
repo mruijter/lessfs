@@ -107,7 +107,10 @@ CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" \
 	"$(DESTDIR)$(man1dir)"
 PROGRAMS = $(bin_PROGRAMS) $(sbin_PROGRAMS)
-am_lessfs_OBJECTS = lessfs-blake3.$(OBJEXT) lessfs-blake3_dispatch.$(OBJEXT) lessfs-blake3_portable.$(OBJEXT) lessfs-lib_tc_replacements.$(OBJEXT) \
+am_lessfs_OBJECTS = lessfs-blake3.$(OBJEXT) \
+	lessfs-blake3_dispatch.$(OBJEXT) \
+	lessfs-blake3_portable.$(OBJEXT) \
+	lessfs-lib_tc_replacements.$(OBJEXT) \
 	lessfs-lib_qlz15.$(OBJEXT) lessfs-lib_common.$(OBJEXT) \
 	lessfs-lib_lzo.$(OBJEXT) lessfs-lessfs_ll.$(OBJEXT) \
 	lessfs-lib_crypto.$(OBJEXT) lessfs-lib_safe.$(OBJEXT) \
@@ -120,7 +123,10 @@ lessfs_OBJECTS = $(am_lessfs_OBJECTS)
 lessfs_LDADD = $(LDADD)
 lessfs_LINK = $(CCLD) $(lessfs_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-am_lessfsck_OBJECTS = lessfsck-blake3.$(OBJEXT) lessfsck-blake3_dispatch.$(OBJEXT) lessfsck-blake3_portable.$(OBJEXT) lessfsck-lib_tc_replacements.$(OBJEXT) \
+am_lessfsck_OBJECTS = lessfsck-blake3.$(OBJEXT) \
+	lessfsck-blake3_dispatch.$(OBJEXT) \
+	lessfsck-blake3_portable.$(OBJEXT) \
+	lessfsck-lib_tc_replacements.$(OBJEXT) \
 	lessfsck-lib_common.$(OBJEXT) lessfsck-lib_lzo.$(OBJEXT) \
 	lessfsck-lib_qlz15.$(OBJEXT) lessfsck-file_io.$(OBJEXT) \
 	lessfsck-lessfsck.$(OBJEXT) lessfsck-lib_crypto.$(OBJEXT) \
@@ -133,7 +139,10 @@ lessfsck_OBJECTS = $(am_lessfsck_OBJECTS)
 lessfsck_LDADD = $(LDADD)
 lessfsck_LINK = $(CCLD) $(lessfsck_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-am_listdb_OBJECTS = listdb-blake3.$(OBJEXT) listdb-blake3_dispatch.$(OBJEXT) listdb-blake3_portable.$(OBJEXT) listdb-lib_tc_replacements.$(OBJEXT) \
+am_listdb_OBJECTS = listdb-blake3.$(OBJEXT) \
+	listdb-blake3_dispatch.$(OBJEXT) \
+	listdb-blake3_portable.$(OBJEXT) \
+	listdb-lib_tc_replacements.$(OBJEXT) \
 	listdb-lib_common.$(OBJEXT) listdb-lib_lzo.$(OBJEXT) \
 	listdb-lib_qlz15.$(OBJEXT) listdb-file_io.$(OBJEXT) \
 	listdb-listdb.$(OBJEXT) listdb-lib_crypto.$(OBJEXT) \
@@ -146,7 +155,10 @@ listdb_OBJECTS = $(am_listdb_OBJECTS)
 listdb_LDADD = $(LDADD)
 listdb_LINK = $(CCLD) $(listdb_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-am_mklessfs_OBJECTS = mklessfs-blake3.$(OBJEXT) mklessfs-blake3_dispatch.$(OBJEXT) mklessfs-blake3_portable.$(OBJEXT) mklessfs-lib_tc_replacements.$(OBJEXT) \
+am_mklessfs_OBJECTS = mklessfs-blake3.$(OBJEXT) \
+	mklessfs-blake3_dispatch.$(OBJEXT) \
+	mklessfs-blake3_portable.$(OBJEXT) \
+	mklessfs-lib_tc_replacements.$(OBJEXT) \
 	mklessfs-lib_common.$(OBJEXT) mklessfs-lib_qlz15.$(OBJEXT) \
 	mklessfs-lib_lzo.$(OBJEXT) mklessfs-file_io.$(OBJEXT) \
 	mklessfs-mklessfs.$(OBJEXT) mklessfs-lib_crypto.$(OBJEXT) \
@@ -159,7 +171,10 @@ mklessfs_OBJECTS = $(am_mklessfs_OBJECTS)
 mklessfs_LDADD = $(LDADD)
 mklessfs_LINK = $(CCLD) $(mklessfs_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-am_replogtool_OBJECTS = replogtool-blake3.$(OBJEXT) replogtool-blake3_dispatch.$(OBJEXT) replogtool-blake3_portable.$(OBJEXT) replogtool-lib_tc_replacements.$(OBJEXT) \
+am_replogtool_OBJECTS = replogtool-blake3.$(OBJEXT) \
+	replogtool-blake3_dispatch.$(OBJEXT) \
+	replogtool-blake3_portable.$(OBJEXT) \
+	replogtool-lib_tc_replacements.$(OBJEXT) \
 	replogtool-lib_common.$(OBJEXT) replogtool-lib_lzo.$(OBJEXT) \
 	replogtool-lib_qlz15.$(OBJEXT) replogtool-file_io.$(OBJEXT) \
 	replogtool-replogtool.$(OBJEXT) \
@@ -187,9 +202,12 @@ am__v_at_1 =
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/lessfs-file_io.Po \
-	./$(DEPDIR)/lessfs-lessfs_ll.Po ./$(DEPDIR)/lessfs-lib_bdb.Po \
-	./$(DEPDIR)/lessfs-lib_cfg.Po ./$(DEPDIR)/lessfs-lib_common.Po \
+am__depfiles_remade = ./$(DEPDIR)/lessfs-blake3.Po \
+	./$(DEPDIR)/lessfs-blake3_dispatch.Po \
+	./$(DEPDIR)/lessfs-blake3_portable.Po \
+	./$(DEPDIR)/lessfs-file_io.Po ./$(DEPDIR)/lessfs-lessfs_ll.Po \
+	./$(DEPDIR)/lessfs-lib_bdb.Po ./$(DEPDIR)/lessfs-lib_cfg.Po \
+	./$(DEPDIR)/lessfs-lib_common.Po \
 	./$(DEPDIR)/lessfs-lib_crypto.Po \
 	./$(DEPDIR)/lessfs-lib_lmdb.Po ./$(DEPDIR)/lessfs-lib_lzo.Po \
 	./$(DEPDIR)/lessfs-lib_net.Po ./$(DEPDIR)/lessfs-lib_qlz.Po \
@@ -197,6 +215,9 @@ am__depfiles_remade = ./$(DEPDIR)/lessfs-file_io.Po \
 	./$(DEPDIR)/lessfs-lib_safe.Po \
 	./$(DEPDIR)/lessfs-lib_snappy.Po ./$(DEPDIR)/lessfs-lib_str.Po \
 	./$(DEPDIR)/lessfs-lib_tc_replacements.Po \
+	./$(DEPDIR)/lessfsck-blake3.Po \
+	./$(DEPDIR)/lessfsck-blake3_dispatch.Po \
+	./$(DEPDIR)/lessfsck-blake3_portable.Po \
 	./$(DEPDIR)/lessfsck-file_io.Po \
 	./$(DEPDIR)/lessfsck-lessfsck.Po \
 	./$(DEPDIR)/lessfsck-lib_bdb.Po \
@@ -213,6 +234,9 @@ am__depfiles_remade = ./$(DEPDIR)/lessfs-file_io.Po \
 	./$(DEPDIR)/lessfsck-lib_snappy.Po \
 	./$(DEPDIR)/lessfsck-lib_str.Po \
 	./$(DEPDIR)/lessfsck-lib_tc_replacements.Po \
+	./$(DEPDIR)/listdb-blake3.Po \
+	./$(DEPDIR)/listdb-blake3_dispatch.Po \
+	./$(DEPDIR)/listdb-blake3_portable.Po \
 	./$(DEPDIR)/listdb-file_io.Po ./$(DEPDIR)/listdb-lib_bdb.Po \
 	./$(DEPDIR)/listdb-lib_cfg.Po ./$(DEPDIR)/listdb-lib_common.Po \
 	./$(DEPDIR)/listdb-lib_crypto.Po \
@@ -222,7 +246,10 @@ am__depfiles_remade = ./$(DEPDIR)/lessfs-file_io.Po \
 	./$(DEPDIR)/listdb-lib_safe.Po \
 	./$(DEPDIR)/listdb-lib_snappy.Po ./$(DEPDIR)/listdb-lib_str.Po \
 	./$(DEPDIR)/listdb-lib_tc_replacements.Po \
-	./$(DEPDIR)/listdb-listdb.Po ./$(DEPDIR)/mklessfs-file_io.Po \
+	./$(DEPDIR)/listdb-listdb.Po ./$(DEPDIR)/mklessfs-blake3.Po \
+	./$(DEPDIR)/mklessfs-blake3_dispatch.Po \
+	./$(DEPDIR)/mklessfs-blake3_portable.Po \
+	./$(DEPDIR)/mklessfs-file_io.Po \
 	./$(DEPDIR)/mklessfs-lib_bdb.Po \
 	./$(DEPDIR)/mklessfs-lib_cfg.Po \
 	./$(DEPDIR)/mklessfs-lib_common.Po \
@@ -238,6 +265,9 @@ am__depfiles_remade = ./$(DEPDIR)/lessfs-file_io.Po \
 	./$(DEPDIR)/mklessfs-lib_str.Po \
 	./$(DEPDIR)/mklessfs-lib_tc_replacements.Po \
 	./$(DEPDIR)/mklessfs-mklessfs.Po \
+	./$(DEPDIR)/replogtool-blake3.Po \
+	./$(DEPDIR)/replogtool-blake3_dispatch.Po \
+	./$(DEPDIR)/replogtool-blake3_portable.Po \
 	./$(DEPDIR)/replogtool-file_io.Po \
 	./$(DEPDIR)/replogtool-lib_bdb.Po \
 	./$(DEPDIR)/replogtool-lib_cfg.Po \
@@ -639,6 +669,9 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfs-blake3.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfs-blake3_dispatch.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfs-blake3_portable.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfs-file_io.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfs-lessfs_ll.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfs-lib_bdb.Po@am__quote@ # am--include-marker
@@ -655,6 +688,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfs-lib_snappy.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfs-lib_str.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfs-lib_tc_replacements.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfsck-blake3.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfsck-blake3_dispatch.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfsck-blake3_portable.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfsck-file_io.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfsck-lessfsck.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfsck-lib_bdb.Po@am__quote@ # am--include-marker
@@ -671,6 +707,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfsck-lib_snappy.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfsck-lib_str.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lessfsck-lib_tc_replacements.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/listdb-blake3.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/listdb-blake3_dispatch.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/listdb-blake3_portable.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/listdb-file_io.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/listdb-lib_bdb.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/listdb-lib_cfg.Po@am__quote@ # am--include-marker
@@ -687,6 +726,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/listdb-lib_str.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/listdb-lib_tc_replacements.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/listdb-listdb.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mklessfs-blake3.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mklessfs-blake3_dispatch.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mklessfs-blake3_portable.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mklessfs-file_io.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mklessfs-lib_bdb.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mklessfs-lib_cfg.Po@am__quote@ # am--include-marker
@@ -703,6 +745,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mklessfs-lib_str.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mklessfs-lib_tc_replacements.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mklessfs-mklessfs.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/replogtool-blake3.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/replogtool-blake3_dispatch.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/replogtool-blake3_portable.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/replogtool-file_io.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/replogtool-lib_bdb.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/replogtool-lib_cfg.Po@am__quote@ # am--include-marker
@@ -740,67 +785,47 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
-
-# BLAKE3 compile rules - all targets use portable-only mode
 lessfs-blake3.o: blake3.c
-	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -MT lessfs-blake3.o -MD -MP -MF $(DEPDIR)/lessfs-blake3.Tpo -c -o lessfs-blake3.o `test -f 'blake3.c' || echo '$(srcdir)/'`blake3.c
-	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfs-blake3.Tpo $(DEPDIR)/lessfs-blake3.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -MT lessfs-blake3.o -MD -MP -MF $(DEPDIR)/lessfs-blake3.Tpo -c -o lessfs-blake3.o `test -f 'blake3.c' || echo '$(srcdir)/'`blake3.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfs-blake3.Tpo $(DEPDIR)/lessfs-blake3.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3.c' object='lessfs-blake3.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -c -o lessfs-blake3.o `test -f 'blake3.c' || echo '$(srcdir)/'`blake3.c
+
+lessfs-blake3.obj: blake3.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -MT lessfs-blake3.obj -MD -MP -MF $(DEPDIR)/lessfs-blake3.Tpo -c -o lessfs-blake3.obj `if test -f 'blake3.c'; then $(CYGPATH_W) 'blake3.c'; else $(CYGPATH_W) '$(srcdir)/blake3.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfs-blake3.Tpo $(DEPDIR)/lessfs-blake3.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3.c' object='lessfs-blake3.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -c -o lessfs-blake3.obj `if test -f 'blake3.c'; then $(CYGPATH_W) 'blake3.c'; else $(CYGPATH_W) '$(srcdir)/blake3.c'; fi`
 
 lessfs-blake3_dispatch.o: blake3_dispatch.c
-	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -MT lessfs-blake3_dispatch.o -MD -MP -MF $(DEPDIR)/lessfs-blake3_dispatch.Tpo -c -o lessfs-blake3_dispatch.o `test -f 'blake3_dispatch.c' || echo '$(srcdir)/'`blake3_dispatch.c
-	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfs-blake3_dispatch.Tpo $(DEPDIR)/lessfs-blake3_dispatch.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -MT lessfs-blake3_dispatch.o -MD -MP -MF $(DEPDIR)/lessfs-blake3_dispatch.Tpo -c -o lessfs-blake3_dispatch.o `test -f 'blake3_dispatch.c' || echo '$(srcdir)/'`blake3_dispatch.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfs-blake3_dispatch.Tpo $(DEPDIR)/lessfs-blake3_dispatch.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_dispatch.c' object='lessfs-blake3_dispatch.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -c -o lessfs-blake3_dispatch.o `test -f 'blake3_dispatch.c' || echo '$(srcdir)/'`blake3_dispatch.c
+
+lessfs-blake3_dispatch.obj: blake3_dispatch.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -MT lessfs-blake3_dispatch.obj -MD -MP -MF $(DEPDIR)/lessfs-blake3_dispatch.Tpo -c -o lessfs-blake3_dispatch.obj `if test -f 'blake3_dispatch.c'; then $(CYGPATH_W) 'blake3_dispatch.c'; else $(CYGPATH_W) '$(srcdir)/blake3_dispatch.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfs-blake3_dispatch.Tpo $(DEPDIR)/lessfs-blake3_dispatch.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_dispatch.c' object='lessfs-blake3_dispatch.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -c -o lessfs-blake3_dispatch.obj `if test -f 'blake3_dispatch.c'; then $(CYGPATH_W) 'blake3_dispatch.c'; else $(CYGPATH_W) '$(srcdir)/blake3_dispatch.c'; fi`
 
 lessfs-blake3_portable.o: blake3_portable.c
-	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -MT lessfs-blake3_portable.o -MD -MP -MF $(DEPDIR)/lessfs-blake3_portable.Tpo -c -o lessfs-blake3_portable.o `test -f 'blake3_portable.c' || echo '$(srcdir)/'`blake3_portable.c
-	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfs-blake3_portable.Tpo $(DEPDIR)/lessfs-blake3_portable.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -MT lessfs-blake3_portable.o -MD -MP -MF $(DEPDIR)/lessfs-blake3_portable.Tpo -c -o lessfs-blake3_portable.o `test -f 'blake3_portable.c' || echo '$(srcdir)/'`blake3_portable.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfs-blake3_portable.Tpo $(DEPDIR)/lessfs-blake3_portable.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_portable.c' object='lessfs-blake3_portable.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -c -o lessfs-blake3_portable.o `test -f 'blake3_portable.c' || echo '$(srcdir)/'`blake3_portable.c
 
-lessfsck-blake3.o: blake3.c
-	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -MT lessfsck-blake3.o -MD -MP -MF $(DEPDIR)/lessfsck-blake3.Tpo -c -o lessfsck-blake3.o `test -f 'blake3.c' || echo '$(srcdir)/'`blake3.c
-	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfsck-blake3.Tpo $(DEPDIR)/lessfsck-blake3.Po
-
-lessfsck-blake3_dispatch.o: blake3_dispatch.c
-	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -MT lessfsck-blake3_dispatch.o -MD -MP -MF $(DEPDIR)/lessfsck-blake3_dispatch.Tpo -c -o lessfsck-blake3_dispatch.o `test -f 'blake3_dispatch.c' || echo '$(srcdir)/'`blake3_dispatch.c
-	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfsck-blake3_dispatch.Tpo $(DEPDIR)/lessfsck-blake3_dispatch.Po
-
-lessfsck-blake3_portable.o: blake3_portable.c
-	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -MT lessfsck-blake3_portable.o -MD -MP -MF $(DEPDIR)/lessfsck-blake3_portable.Tpo -c -o lessfsck-blake3_portable.o `test -f 'blake3_portable.c' || echo '$(srcdir)/'`blake3_portable.c
-	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfsck-blake3_portable.Tpo $(DEPDIR)/lessfsck-blake3_portable.Po
-
-listdb-blake3.o: blake3.c
-	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -MT listdb-blake3.o -MD -MP -MF $(DEPDIR)/listdb-blake3.Tpo -c -o listdb-blake3.o `test -f 'blake3.c' || echo '$(srcdir)/'`blake3.c
-	$(AM_V_at)$(am__mv) $(DEPDIR)/listdb-blake3.Tpo $(DEPDIR)/listdb-blake3.Po
-
-listdb-blake3_dispatch.o: blake3_dispatch.c
-	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -MT listdb-blake3_dispatch.o -MD -MP -MF $(DEPDIR)/listdb-blake3_dispatch.Tpo -c -o listdb-blake3_dispatch.o `test -f 'blake3_dispatch.c' || echo '$(srcdir)/'`blake3_dispatch.c
-	$(AM_V_at)$(am__mv) $(DEPDIR)/listdb-blake3_dispatch.Tpo $(DEPDIR)/listdb-blake3_dispatch.Po
-
-listdb-blake3_portable.o: blake3_portable.c
-	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -MT listdb-blake3_portable.o -MD -MP -MF $(DEPDIR)/listdb-blake3_portable.Tpo -c -o listdb-blake3_portable.o `test -f 'blake3_portable.c' || echo '$(srcdir)/'`blake3_portable.c
-	$(AM_V_at)$(am__mv) $(DEPDIR)/listdb-blake3_portable.Tpo $(DEPDIR)/listdb-blake3_portable.Po
-
-mklessfs-blake3.o: blake3.c
-	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -MT mklessfs-blake3.o -MD -MP -MF $(DEPDIR)/mklessfs-blake3.Tpo -c -o mklessfs-blake3.o `test -f 'blake3.c' || echo '$(srcdir)/'`blake3.c
-	$(AM_V_at)$(am__mv) $(DEPDIR)/mklessfs-blake3.Tpo $(DEPDIR)/mklessfs-blake3.Po
-
-mklessfs-blake3_dispatch.o: blake3_dispatch.c
-	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -MT mklessfs-blake3_dispatch.o -MD -MP -MF $(DEPDIR)/mklessfs-blake3_dispatch.Tpo -c -o mklessfs-blake3_dispatch.o `test -f 'blake3_dispatch.c' || echo '$(srcdir)/'`blake3_dispatch.c
-	$(AM_V_at)$(am__mv) $(DEPDIR)/mklessfs-blake3_dispatch.Tpo $(DEPDIR)/mklessfs-blake3_dispatch.Po
-
-mklessfs-blake3_portable.o: blake3_portable.c
-	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -MT mklessfs-blake3_portable.o -MD -MP -MF $(DEPDIR)/mklessfs-blake3_portable.Tpo -c -o mklessfs-blake3_portable.o `test -f 'blake3_portable.c' || echo '$(srcdir)/'`blake3_portable.c
-	$(AM_V_at)$(am__mv) $(DEPDIR)/mklessfs-blake3_portable.Tpo $(DEPDIR)/mklessfs-blake3_portable.Po
-
-replogtool-blake3.o: blake3.c
-	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -MT replogtool-blake3.o -MD -MP -MF $(DEPDIR)/replogtool-blake3.Tpo -c -o replogtool-blake3.o `test -f 'blake3.c' || echo '$(srcdir)/'`blake3.c
-	$(AM_V_at)$(am__mv) $(DEPDIR)/replogtool-blake3.Tpo $(DEPDIR)/replogtool-blake3.Po
-
-replogtool-blake3_dispatch.o: blake3_dispatch.c
-	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -MT replogtool-blake3_dispatch.o -MD -MP -MF $(DEPDIR)/replogtool-blake3_dispatch.Tpo -c -o replogtool-blake3_dispatch.o `test -f 'blake3_dispatch.c' || echo '$(srcdir)/'`blake3_dispatch.c
-	$(AM_V_at)$(am__mv) $(DEPDIR)/replogtool-blake3_dispatch.Tpo $(DEPDIR)/replogtool-blake3_dispatch.Po
-
-replogtool-blake3_portable.o: blake3_portable.c
-	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -MT replogtool-blake3_portable.o -MD -MP -MF $(DEPDIR)/replogtool-blake3_portable.Tpo -c -o replogtool-blake3_portable.o `test -f 'blake3_portable.c' || echo '$(srcdir)/'`blake3_portable.c
-	$(AM_V_at)$(am__mv) $(DEPDIR)/replogtool-blake3_portable.Tpo $(DEPDIR)/replogtool-blake3_portable.Po
+lessfs-blake3_portable.obj: blake3_portable.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -MT lessfs-blake3_portable.obj -MD -MP -MF $(DEPDIR)/lessfs-blake3_portable.Tpo -c -o lessfs-blake3_portable.obj `if test -f 'blake3_portable.c'; then $(CYGPATH_W) 'blake3_portable.c'; else $(CYGPATH_W) '$(srcdir)/blake3_portable.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfs-blake3_portable.Tpo $(DEPDIR)/lessfs-blake3_portable.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_portable.c' object='lessfs-blake3_portable.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -c -o lessfs-blake3_portable.obj `if test -f 'blake3_portable.c'; then $(CYGPATH_W) 'blake3_portable.c'; else $(CYGPATH_W) '$(srcdir)/blake3_portable.c'; fi`
 
 lessfs-lib_tc_replacements.o: lib_tc_replacements.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -MT lessfs-lib_tc_replacements.o -MD -MP -MF $(DEPDIR)/lessfs-lib_tc_replacements.Tpo -c -o lessfs-lib_tc_replacements.o `test -f 'lib_tc_replacements.c' || echo '$(srcdir)/'`lib_tc_replacements.c
@@ -1026,6 +1051,48 @@ lessfs-lib_snappy.obj: lib_snappy.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfs_CFLAGS) $(CFLAGS) -c -o lessfs-lib_snappy.obj `if test -f 'lib_snappy.c'; then $(CYGPATH_W) 'lib_snappy.c'; else $(CYGPATH_W) '$(srcdir)/lib_snappy.c'; fi`
 
+lessfsck-blake3.o: blake3.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -MT lessfsck-blake3.o -MD -MP -MF $(DEPDIR)/lessfsck-blake3.Tpo -c -o lessfsck-blake3.o `test -f 'blake3.c' || echo '$(srcdir)/'`blake3.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfsck-blake3.Tpo $(DEPDIR)/lessfsck-blake3.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3.c' object='lessfsck-blake3.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -c -o lessfsck-blake3.o `test -f 'blake3.c' || echo '$(srcdir)/'`blake3.c
+
+lessfsck-blake3.obj: blake3.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -MT lessfsck-blake3.obj -MD -MP -MF $(DEPDIR)/lessfsck-blake3.Tpo -c -o lessfsck-blake3.obj `if test -f 'blake3.c'; then $(CYGPATH_W) 'blake3.c'; else $(CYGPATH_W) '$(srcdir)/blake3.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfsck-blake3.Tpo $(DEPDIR)/lessfsck-blake3.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3.c' object='lessfsck-blake3.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -c -o lessfsck-blake3.obj `if test -f 'blake3.c'; then $(CYGPATH_W) 'blake3.c'; else $(CYGPATH_W) '$(srcdir)/blake3.c'; fi`
+
+lessfsck-blake3_dispatch.o: blake3_dispatch.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -MT lessfsck-blake3_dispatch.o -MD -MP -MF $(DEPDIR)/lessfsck-blake3_dispatch.Tpo -c -o lessfsck-blake3_dispatch.o `test -f 'blake3_dispatch.c' || echo '$(srcdir)/'`blake3_dispatch.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfsck-blake3_dispatch.Tpo $(DEPDIR)/lessfsck-blake3_dispatch.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_dispatch.c' object='lessfsck-blake3_dispatch.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -c -o lessfsck-blake3_dispatch.o `test -f 'blake3_dispatch.c' || echo '$(srcdir)/'`blake3_dispatch.c
+
+lessfsck-blake3_dispatch.obj: blake3_dispatch.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -MT lessfsck-blake3_dispatch.obj -MD -MP -MF $(DEPDIR)/lessfsck-blake3_dispatch.Tpo -c -o lessfsck-blake3_dispatch.obj `if test -f 'blake3_dispatch.c'; then $(CYGPATH_W) 'blake3_dispatch.c'; else $(CYGPATH_W) '$(srcdir)/blake3_dispatch.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfsck-blake3_dispatch.Tpo $(DEPDIR)/lessfsck-blake3_dispatch.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_dispatch.c' object='lessfsck-blake3_dispatch.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -c -o lessfsck-blake3_dispatch.obj `if test -f 'blake3_dispatch.c'; then $(CYGPATH_W) 'blake3_dispatch.c'; else $(CYGPATH_W) '$(srcdir)/blake3_dispatch.c'; fi`
+
+lessfsck-blake3_portable.o: blake3_portable.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -MT lessfsck-blake3_portable.o -MD -MP -MF $(DEPDIR)/lessfsck-blake3_portable.Tpo -c -o lessfsck-blake3_portable.o `test -f 'blake3_portable.c' || echo '$(srcdir)/'`blake3_portable.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfsck-blake3_portable.Tpo $(DEPDIR)/lessfsck-blake3_portable.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_portable.c' object='lessfsck-blake3_portable.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -c -o lessfsck-blake3_portable.o `test -f 'blake3_portable.c' || echo '$(srcdir)/'`blake3_portable.c
+
+lessfsck-blake3_portable.obj: blake3_portable.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -MT lessfsck-blake3_portable.obj -MD -MP -MF $(DEPDIR)/lessfsck-blake3_portable.Tpo -c -o lessfsck-blake3_portable.obj `if test -f 'blake3_portable.c'; then $(CYGPATH_W) 'blake3_portable.c'; else $(CYGPATH_W) '$(srcdir)/blake3_portable.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfsck-blake3_portable.Tpo $(DEPDIR)/lessfsck-blake3_portable.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_portable.c' object='lessfsck-blake3_portable.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -c -o lessfsck-blake3_portable.obj `if test -f 'blake3_portable.c'; then $(CYGPATH_W) 'blake3_portable.c'; else $(CYGPATH_W) '$(srcdir)/blake3_portable.c'; fi`
+
 lessfsck-lib_tc_replacements.o: lib_tc_replacements.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -MT lessfsck-lib_tc_replacements.o -MD -MP -MF $(DEPDIR)/lessfsck-lib_tc_replacements.Tpo -c -o lessfsck-lib_tc_replacements.o `test -f 'lib_tc_replacements.c' || echo '$(srcdir)/'`lib_tc_replacements.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lessfsck-lib_tc_replacements.Tpo $(DEPDIR)/lessfsck-lib_tc_replacements.Po
@@ -1249,6 +1316,48 @@ lessfsck-lib_snappy.obj: lib_snappy.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib_snappy.c' object='lessfsck-lib_snappy.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lessfsck_CFLAGS) $(CFLAGS) -c -o lessfsck-lib_snappy.obj `if test -f 'lib_snappy.c'; then $(CYGPATH_W) 'lib_snappy.c'; else $(CYGPATH_W) '$(srcdir)/lib_snappy.c'; fi`
+
+listdb-blake3.o: blake3.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -MT listdb-blake3.o -MD -MP -MF $(DEPDIR)/listdb-blake3.Tpo -c -o listdb-blake3.o `test -f 'blake3.c' || echo '$(srcdir)/'`blake3.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/listdb-blake3.Tpo $(DEPDIR)/listdb-blake3.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3.c' object='listdb-blake3.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -c -o listdb-blake3.o `test -f 'blake3.c' || echo '$(srcdir)/'`blake3.c
+
+listdb-blake3.obj: blake3.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -MT listdb-blake3.obj -MD -MP -MF $(DEPDIR)/listdb-blake3.Tpo -c -o listdb-blake3.obj `if test -f 'blake3.c'; then $(CYGPATH_W) 'blake3.c'; else $(CYGPATH_W) '$(srcdir)/blake3.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/listdb-blake3.Tpo $(DEPDIR)/listdb-blake3.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3.c' object='listdb-blake3.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -c -o listdb-blake3.obj `if test -f 'blake3.c'; then $(CYGPATH_W) 'blake3.c'; else $(CYGPATH_W) '$(srcdir)/blake3.c'; fi`
+
+listdb-blake3_dispatch.o: blake3_dispatch.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -MT listdb-blake3_dispatch.o -MD -MP -MF $(DEPDIR)/listdb-blake3_dispatch.Tpo -c -o listdb-blake3_dispatch.o `test -f 'blake3_dispatch.c' || echo '$(srcdir)/'`blake3_dispatch.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/listdb-blake3_dispatch.Tpo $(DEPDIR)/listdb-blake3_dispatch.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_dispatch.c' object='listdb-blake3_dispatch.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -c -o listdb-blake3_dispatch.o `test -f 'blake3_dispatch.c' || echo '$(srcdir)/'`blake3_dispatch.c
+
+listdb-blake3_dispatch.obj: blake3_dispatch.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -MT listdb-blake3_dispatch.obj -MD -MP -MF $(DEPDIR)/listdb-blake3_dispatch.Tpo -c -o listdb-blake3_dispatch.obj `if test -f 'blake3_dispatch.c'; then $(CYGPATH_W) 'blake3_dispatch.c'; else $(CYGPATH_W) '$(srcdir)/blake3_dispatch.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/listdb-blake3_dispatch.Tpo $(DEPDIR)/listdb-blake3_dispatch.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_dispatch.c' object='listdb-blake3_dispatch.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -c -o listdb-blake3_dispatch.obj `if test -f 'blake3_dispatch.c'; then $(CYGPATH_W) 'blake3_dispatch.c'; else $(CYGPATH_W) '$(srcdir)/blake3_dispatch.c'; fi`
+
+listdb-blake3_portable.o: blake3_portable.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -MT listdb-blake3_portable.o -MD -MP -MF $(DEPDIR)/listdb-blake3_portable.Tpo -c -o listdb-blake3_portable.o `test -f 'blake3_portable.c' || echo '$(srcdir)/'`blake3_portable.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/listdb-blake3_portable.Tpo $(DEPDIR)/listdb-blake3_portable.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_portable.c' object='listdb-blake3_portable.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -c -o listdb-blake3_portable.o `test -f 'blake3_portable.c' || echo '$(srcdir)/'`blake3_portable.c
+
+listdb-blake3_portable.obj: blake3_portable.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -MT listdb-blake3_portable.obj -MD -MP -MF $(DEPDIR)/listdb-blake3_portable.Tpo -c -o listdb-blake3_portable.obj `if test -f 'blake3_portable.c'; then $(CYGPATH_W) 'blake3_portable.c'; else $(CYGPATH_W) '$(srcdir)/blake3_portable.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/listdb-blake3_portable.Tpo $(DEPDIR)/listdb-blake3_portable.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_portable.c' object='listdb-blake3_portable.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -c -o listdb-blake3_portable.obj `if test -f 'blake3_portable.c'; then $(CYGPATH_W) 'blake3_portable.c'; else $(CYGPATH_W) '$(srcdir)/blake3_portable.c'; fi`
 
 listdb-lib_tc_replacements.o: lib_tc_replacements.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -MT listdb-lib_tc_replacements.o -MD -MP -MF $(DEPDIR)/listdb-lib_tc_replacements.Tpo -c -o listdb-lib_tc_replacements.o `test -f 'lib_tc_replacements.c' || echo '$(srcdir)/'`lib_tc_replacements.c
@@ -1474,6 +1583,48 @@ listdb-lib_snappy.obj: lib_snappy.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(listdb_CFLAGS) $(CFLAGS) -c -o listdb-lib_snappy.obj `if test -f 'lib_snappy.c'; then $(CYGPATH_W) 'lib_snappy.c'; else $(CYGPATH_W) '$(srcdir)/lib_snappy.c'; fi`
 
+mklessfs-blake3.o: blake3.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -MT mklessfs-blake3.o -MD -MP -MF $(DEPDIR)/mklessfs-blake3.Tpo -c -o mklessfs-blake3.o `test -f 'blake3.c' || echo '$(srcdir)/'`blake3.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mklessfs-blake3.Tpo $(DEPDIR)/mklessfs-blake3.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3.c' object='mklessfs-blake3.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -c -o mklessfs-blake3.o `test -f 'blake3.c' || echo '$(srcdir)/'`blake3.c
+
+mklessfs-blake3.obj: blake3.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -MT mklessfs-blake3.obj -MD -MP -MF $(DEPDIR)/mklessfs-blake3.Tpo -c -o mklessfs-blake3.obj `if test -f 'blake3.c'; then $(CYGPATH_W) 'blake3.c'; else $(CYGPATH_W) '$(srcdir)/blake3.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mklessfs-blake3.Tpo $(DEPDIR)/mklessfs-blake3.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3.c' object='mklessfs-blake3.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -c -o mklessfs-blake3.obj `if test -f 'blake3.c'; then $(CYGPATH_W) 'blake3.c'; else $(CYGPATH_W) '$(srcdir)/blake3.c'; fi`
+
+mklessfs-blake3_dispatch.o: blake3_dispatch.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -MT mklessfs-blake3_dispatch.o -MD -MP -MF $(DEPDIR)/mklessfs-blake3_dispatch.Tpo -c -o mklessfs-blake3_dispatch.o `test -f 'blake3_dispatch.c' || echo '$(srcdir)/'`blake3_dispatch.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mklessfs-blake3_dispatch.Tpo $(DEPDIR)/mklessfs-blake3_dispatch.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_dispatch.c' object='mklessfs-blake3_dispatch.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -c -o mklessfs-blake3_dispatch.o `test -f 'blake3_dispatch.c' || echo '$(srcdir)/'`blake3_dispatch.c
+
+mklessfs-blake3_dispatch.obj: blake3_dispatch.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -MT mklessfs-blake3_dispatch.obj -MD -MP -MF $(DEPDIR)/mklessfs-blake3_dispatch.Tpo -c -o mklessfs-blake3_dispatch.obj `if test -f 'blake3_dispatch.c'; then $(CYGPATH_W) 'blake3_dispatch.c'; else $(CYGPATH_W) '$(srcdir)/blake3_dispatch.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mklessfs-blake3_dispatch.Tpo $(DEPDIR)/mklessfs-blake3_dispatch.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_dispatch.c' object='mklessfs-blake3_dispatch.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -c -o mklessfs-blake3_dispatch.obj `if test -f 'blake3_dispatch.c'; then $(CYGPATH_W) 'blake3_dispatch.c'; else $(CYGPATH_W) '$(srcdir)/blake3_dispatch.c'; fi`
+
+mklessfs-blake3_portable.o: blake3_portable.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -MT mklessfs-blake3_portable.o -MD -MP -MF $(DEPDIR)/mklessfs-blake3_portable.Tpo -c -o mklessfs-blake3_portable.o `test -f 'blake3_portable.c' || echo '$(srcdir)/'`blake3_portable.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mklessfs-blake3_portable.Tpo $(DEPDIR)/mklessfs-blake3_portable.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_portable.c' object='mklessfs-blake3_portable.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -c -o mklessfs-blake3_portable.o `test -f 'blake3_portable.c' || echo '$(srcdir)/'`blake3_portable.c
+
+mklessfs-blake3_portable.obj: blake3_portable.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -MT mklessfs-blake3_portable.obj -MD -MP -MF $(DEPDIR)/mklessfs-blake3_portable.Tpo -c -o mklessfs-blake3_portable.obj `if test -f 'blake3_portable.c'; then $(CYGPATH_W) 'blake3_portable.c'; else $(CYGPATH_W) '$(srcdir)/blake3_portable.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mklessfs-blake3_portable.Tpo $(DEPDIR)/mklessfs-blake3_portable.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_portable.c' object='mklessfs-blake3_portable.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -c -o mklessfs-blake3_portable.obj `if test -f 'blake3_portable.c'; then $(CYGPATH_W) 'blake3_portable.c'; else $(CYGPATH_W) '$(srcdir)/blake3_portable.c'; fi`
+
 mklessfs-lib_tc_replacements.o: lib_tc_replacements.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -MT mklessfs-lib_tc_replacements.o -MD -MP -MF $(DEPDIR)/mklessfs-lib_tc_replacements.Tpo -c -o mklessfs-lib_tc_replacements.o `test -f 'lib_tc_replacements.c' || echo '$(srcdir)/'`lib_tc_replacements.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mklessfs-lib_tc_replacements.Tpo $(DEPDIR)/mklessfs-lib_tc_replacements.Po
@@ -1697,6 +1848,48 @@ mklessfs-lib_snappy.obj: lib_snappy.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib_snappy.c' object='mklessfs-lib_snappy.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mklessfs_CFLAGS) $(CFLAGS) -c -o mklessfs-lib_snappy.obj `if test -f 'lib_snappy.c'; then $(CYGPATH_W) 'lib_snappy.c'; else $(CYGPATH_W) '$(srcdir)/lib_snappy.c'; fi`
+
+replogtool-blake3.o: blake3.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -MT replogtool-blake3.o -MD -MP -MF $(DEPDIR)/replogtool-blake3.Tpo -c -o replogtool-blake3.o `test -f 'blake3.c' || echo '$(srcdir)/'`blake3.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/replogtool-blake3.Tpo $(DEPDIR)/replogtool-blake3.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3.c' object='replogtool-blake3.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -c -o replogtool-blake3.o `test -f 'blake3.c' || echo '$(srcdir)/'`blake3.c
+
+replogtool-blake3.obj: blake3.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -MT replogtool-blake3.obj -MD -MP -MF $(DEPDIR)/replogtool-blake3.Tpo -c -o replogtool-blake3.obj `if test -f 'blake3.c'; then $(CYGPATH_W) 'blake3.c'; else $(CYGPATH_W) '$(srcdir)/blake3.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/replogtool-blake3.Tpo $(DEPDIR)/replogtool-blake3.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3.c' object='replogtool-blake3.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -c -o replogtool-blake3.obj `if test -f 'blake3.c'; then $(CYGPATH_W) 'blake3.c'; else $(CYGPATH_W) '$(srcdir)/blake3.c'; fi`
+
+replogtool-blake3_dispatch.o: blake3_dispatch.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -MT replogtool-blake3_dispatch.o -MD -MP -MF $(DEPDIR)/replogtool-blake3_dispatch.Tpo -c -o replogtool-blake3_dispatch.o `test -f 'blake3_dispatch.c' || echo '$(srcdir)/'`blake3_dispatch.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/replogtool-blake3_dispatch.Tpo $(DEPDIR)/replogtool-blake3_dispatch.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_dispatch.c' object='replogtool-blake3_dispatch.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -c -o replogtool-blake3_dispatch.o `test -f 'blake3_dispatch.c' || echo '$(srcdir)/'`blake3_dispatch.c
+
+replogtool-blake3_dispatch.obj: blake3_dispatch.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -MT replogtool-blake3_dispatch.obj -MD -MP -MF $(DEPDIR)/replogtool-blake3_dispatch.Tpo -c -o replogtool-blake3_dispatch.obj `if test -f 'blake3_dispatch.c'; then $(CYGPATH_W) 'blake3_dispatch.c'; else $(CYGPATH_W) '$(srcdir)/blake3_dispatch.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/replogtool-blake3_dispatch.Tpo $(DEPDIR)/replogtool-blake3_dispatch.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_dispatch.c' object='replogtool-blake3_dispatch.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -c -o replogtool-blake3_dispatch.obj `if test -f 'blake3_dispatch.c'; then $(CYGPATH_W) 'blake3_dispatch.c'; else $(CYGPATH_W) '$(srcdir)/blake3_dispatch.c'; fi`
+
+replogtool-blake3_portable.o: blake3_portable.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -MT replogtool-blake3_portable.o -MD -MP -MF $(DEPDIR)/replogtool-blake3_portable.Tpo -c -o replogtool-blake3_portable.o `test -f 'blake3_portable.c' || echo '$(srcdir)/'`blake3_portable.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/replogtool-blake3_portable.Tpo $(DEPDIR)/replogtool-blake3_portable.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_portable.c' object='replogtool-blake3_portable.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -c -o replogtool-blake3_portable.o `test -f 'blake3_portable.c' || echo '$(srcdir)/'`blake3_portable.c
+
+replogtool-blake3_portable.obj: blake3_portable.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -MT replogtool-blake3_portable.obj -MD -MP -MF $(DEPDIR)/replogtool-blake3_portable.Tpo -c -o replogtool-blake3_portable.obj `if test -f 'blake3_portable.c'; then $(CYGPATH_W) 'blake3_portable.c'; else $(CYGPATH_W) '$(srcdir)/blake3_portable.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/replogtool-blake3_portable.Tpo $(DEPDIR)/replogtool-blake3_portable.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='blake3_portable.c' object='replogtool-blake3_portable.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -c -o replogtool-blake3_portable.obj `if test -f 'blake3_portable.c'; then $(CYGPATH_W) 'blake3_portable.c'; else $(CYGPATH_W) '$(srcdir)/blake3_portable.c'; fi`
 
 replogtool-lib_tc_replacements.o: lib_tc_replacements.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(replogtool_CFLAGS) $(CFLAGS) -MT replogtool-lib_tc_replacements.o -MD -MP -MF $(DEPDIR)/replogtool-lib_tc_replacements.Tpo -c -o replogtool-lib_tc_replacements.o `test -f 'lib_tc_replacements.c' || echo '$(srcdir)/'`lib_tc_replacements.c
@@ -2237,7 +2430,10 @@ clean-am: clean-binPROGRAMS clean-generic clean-sbinPROGRAMS \
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-		-rm -f ./$(DEPDIR)/lessfs-file_io.Po
+		-rm -f ./$(DEPDIR)/lessfs-blake3.Po
+	-rm -f ./$(DEPDIR)/lessfs-blake3_dispatch.Po
+	-rm -f ./$(DEPDIR)/lessfs-blake3_portable.Po
+	-rm -f ./$(DEPDIR)/lessfs-file_io.Po
 	-rm -f ./$(DEPDIR)/lessfs-lessfs_ll.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_bdb.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_cfg.Po
@@ -2253,6 +2449,9 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/lessfs-lib_snappy.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_str.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_tc_replacements.Po
+	-rm -f ./$(DEPDIR)/lessfsck-blake3.Po
+	-rm -f ./$(DEPDIR)/lessfsck-blake3_dispatch.Po
+	-rm -f ./$(DEPDIR)/lessfsck-blake3_portable.Po
 	-rm -f ./$(DEPDIR)/lessfsck-file_io.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lessfsck.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lib_bdb.Po
@@ -2269,6 +2468,9 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/lessfsck-lib_snappy.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lib_str.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lib_tc_replacements.Po
+	-rm -f ./$(DEPDIR)/listdb-blake3.Po
+	-rm -f ./$(DEPDIR)/listdb-blake3_dispatch.Po
+	-rm -f ./$(DEPDIR)/listdb-blake3_portable.Po
 	-rm -f ./$(DEPDIR)/listdb-file_io.Po
 	-rm -f ./$(DEPDIR)/listdb-lib_bdb.Po
 	-rm -f ./$(DEPDIR)/listdb-lib_cfg.Po
@@ -2285,6 +2487,9 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/listdb-lib_str.Po
 	-rm -f ./$(DEPDIR)/listdb-lib_tc_replacements.Po
 	-rm -f ./$(DEPDIR)/listdb-listdb.Po
+	-rm -f ./$(DEPDIR)/mklessfs-blake3.Po
+	-rm -f ./$(DEPDIR)/mklessfs-blake3_dispatch.Po
+	-rm -f ./$(DEPDIR)/mklessfs-blake3_portable.Po
 	-rm -f ./$(DEPDIR)/mklessfs-file_io.Po
 	-rm -f ./$(DEPDIR)/mklessfs-lib_bdb.Po
 	-rm -f ./$(DEPDIR)/mklessfs-lib_cfg.Po
@@ -2301,6 +2506,9 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/mklessfs-lib_str.Po
 	-rm -f ./$(DEPDIR)/mklessfs-lib_tc_replacements.Po
 	-rm -f ./$(DEPDIR)/mklessfs-mklessfs.Po
+	-rm -f ./$(DEPDIR)/replogtool-blake3.Po
+	-rm -f ./$(DEPDIR)/replogtool-blake3_dispatch.Po
+	-rm -f ./$(DEPDIR)/replogtool-blake3_portable.Po
 	-rm -f ./$(DEPDIR)/replogtool-file_io.Po
 	-rm -f ./$(DEPDIR)/replogtool-lib_bdb.Po
 	-rm -f ./$(DEPDIR)/replogtool-lib_cfg.Po
@@ -2364,7 +2572,10 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -rf $(top_srcdir)/autom4te.cache
-		-rm -f ./$(DEPDIR)/lessfs-file_io.Po
+		-rm -f ./$(DEPDIR)/lessfs-blake3.Po
+	-rm -f ./$(DEPDIR)/lessfs-blake3_dispatch.Po
+	-rm -f ./$(DEPDIR)/lessfs-blake3_portable.Po
+	-rm -f ./$(DEPDIR)/lessfs-file_io.Po
 	-rm -f ./$(DEPDIR)/lessfs-lessfs_ll.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_bdb.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_cfg.Po
@@ -2380,6 +2591,9 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/lessfs-lib_snappy.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_str.Po
 	-rm -f ./$(DEPDIR)/lessfs-lib_tc_replacements.Po
+	-rm -f ./$(DEPDIR)/lessfsck-blake3.Po
+	-rm -f ./$(DEPDIR)/lessfsck-blake3_dispatch.Po
+	-rm -f ./$(DEPDIR)/lessfsck-blake3_portable.Po
 	-rm -f ./$(DEPDIR)/lessfsck-file_io.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lessfsck.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lib_bdb.Po
@@ -2396,6 +2610,9 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/lessfsck-lib_snappy.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lib_str.Po
 	-rm -f ./$(DEPDIR)/lessfsck-lib_tc_replacements.Po
+	-rm -f ./$(DEPDIR)/listdb-blake3.Po
+	-rm -f ./$(DEPDIR)/listdb-blake3_dispatch.Po
+	-rm -f ./$(DEPDIR)/listdb-blake3_portable.Po
 	-rm -f ./$(DEPDIR)/listdb-file_io.Po
 	-rm -f ./$(DEPDIR)/listdb-lib_bdb.Po
 	-rm -f ./$(DEPDIR)/listdb-lib_cfg.Po
@@ -2412,6 +2629,9 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/listdb-lib_str.Po
 	-rm -f ./$(DEPDIR)/listdb-lib_tc_replacements.Po
 	-rm -f ./$(DEPDIR)/listdb-listdb.Po
+	-rm -f ./$(DEPDIR)/mklessfs-blake3.Po
+	-rm -f ./$(DEPDIR)/mklessfs-blake3_dispatch.Po
+	-rm -f ./$(DEPDIR)/mklessfs-blake3_portable.Po
 	-rm -f ./$(DEPDIR)/mklessfs-file_io.Po
 	-rm -f ./$(DEPDIR)/mklessfs-lib_bdb.Po
 	-rm -f ./$(DEPDIR)/mklessfs-lib_cfg.Po
@@ -2428,6 +2648,9 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/mklessfs-lib_str.Po
 	-rm -f ./$(DEPDIR)/mklessfs-lib_tc_replacements.Po
 	-rm -f ./$(DEPDIR)/mklessfs-mklessfs.Po
+	-rm -f ./$(DEPDIR)/replogtool-blake3.Po
+	-rm -f ./$(DEPDIR)/replogtool-blake3_dispatch.Po
+	-rm -f ./$(DEPDIR)/replogtool-blake3_portable.Po
 	-rm -f ./$(DEPDIR)/replogtool-file_io.Po
 	-rm -f ./$(DEPDIR)/replogtool-lib_bdb.Po
 	-rm -f ./$(DEPDIR)/replogtool-lib_cfg.Po

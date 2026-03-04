@@ -160,7 +160,8 @@ unsigned long long get_real_size(unsigned long long inode)
     DDSTAT *ddstat;
     unsigned long long real_size = 0;
 
-    data = search_dbdata(DBP, &inode, sizeof(unsigned long long), LOCK);
+    data = search_inode_dbdata(DBP, inode, &inode,
+                    sizeof(unsigned long long), LOCK);
     if (NULL == data) {
         return (real_size);
     }
@@ -338,7 +339,8 @@ static int stat_inode(unsigned long long inode,
     release_meta_lock();
 
     /* Fall back to on-disk database */
-    dskdata = search_dbdata(DBP, &inode,
+    dskdata = search_inode_dbdata(DBP, inode,
+                            &inode,
                             sizeof(unsigned long long),
                             LOCK);
     if (dskdata == NULL)
@@ -747,7 +749,8 @@ static void ll_setattr(fuse_req_t req,
     } else {
         release_meta_lock();
         /* No metatree entry: update on-disk */
-        dskdata = search_dbdata(DBP, &inode,
+        dskdata = search_inode_dbdata(DBP, inode,
+                    &inode,
                     sizeof(unsigned long long),
                     LOCK);
         if (dskdata == NULL) {
@@ -779,7 +782,7 @@ static void ll_setattr(fuse_req_t req,
         ddbuf = create_ddbuf(ddstat->stbuf,
                              ddstat->filename,
                              ddstat->real_size);
-        bin_write_dbdata(DBP, &inode,
+        bin_write_inode_dbdata(DBP, inode, &inode,
                          sizeof(unsigned long long),
                          (void *) ddbuf->data,
                          ddbuf->size);
@@ -1188,7 +1191,7 @@ static void complete_deferred_delete(
 
     /* Delete symlink target if applicable */
     if (S_ISLNK(saved_st.st_mode)) {
-        delete_key(DBS, &inode,
+        delete_inode_key(DBS, inode, &inode,
                    sizeof(unsigned long long),
                    (char *) __PRETTY_FUNCTION__);
     }
@@ -1203,7 +1206,7 @@ static void complete_deferred_delete(
     }
 
     /* Remove metadata from DBP */
-    delete_key(DBP, (unsigned char *) &inode,
+    delete_inode_key(DBP, inode, &inode,
                sizeof(unsigned long long),
                (char *) __PRETTY_FUNCTION__);
     EFUNC;
@@ -1291,7 +1294,8 @@ static void ll_unlink(fuse_req_t req,
         {
             struct stat pst;
             stat_inode(parent_ino, &pst);
-            btdelete_curkey(DBDIRENT,
+            btdelete_inode_curkey(DBDIRENT,
+                (unsigned long long) pst.st_ino,
                 &pst.st_ino,
                 sizeof(unsigned long long),
                 &inode,
@@ -1300,8 +1304,8 @@ static void ll_unlink(fuse_req_t req,
         }
 
         /* Set nlink=0 in on-disk metadata */
-        dskdata = search_dbdata(DBP,
-            (unsigned char *) &inode,
+        dskdata = search_inode_dbdata(DBP,
+            inode, &inode,
             sizeof(unsigned long long), LOCK);
         if (dskdata) {
             ondisk = value_to_ddstat(dskdata);
@@ -1313,7 +1317,7 @@ static void ll_unlink(fuse_req_t req,
                 ondisk->stbuf,
                 ondisk->filename,
                 ondisk->real_size);
-            bin_write_dbdata(DBP, &inode,
+            bin_write_inode_dbdata(DBP, inode, &inode,
                 sizeof(unsigned long long),
                 (void *) ddbuf->data,
                 ddbuf->size);
@@ -1729,8 +1733,8 @@ static void ll_open(fuse_req_t req,
 
     /* Build bname from on-disk stat */
     {
-        DAT *dsk = search_dbdata(
-            DBP, &inode,
+        DAT *dsk = search_inode_dbdata(
+            DBP, inode, &inode,
             sizeof(unsigned long long), LOCK);
         if (dsk) {
             DDSTAT *dd = value_to_ddstat(dsk);
