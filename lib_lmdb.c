@@ -1782,7 +1782,6 @@ void flistdbu()
     mdb_cursor_close(cur);
 }
 
-#endif /* LMDB */
 
 /*
  * inode_to_path: reconstruct the full path for an
@@ -2091,3 +2090,5 @@ size_t fs_readdir_ll(fuse_req_t req,
     EFUNC;
     return buf_used;
 }
+
+#endif /* LMDB */

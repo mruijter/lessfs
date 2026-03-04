@@ -18,6 +18,9 @@
  *   along with this program;  if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
+#ifndef FUSE_USE_VERSION
+#define FUSE_USE_VERSION 29
+#endif
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -42,6 +45,7 @@
 #include <time.h>
 #include <sys/file.h>
 #include <fuse.h>
+#include <fuse/fuse_lowlevel.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include "lib_tc_replacements.h"
@@ -1946,6 +1950,341 @@ void flistdbu()
     if (key.data)
         s_free(key.data);
     cur->close(cur);
+}
+
+
+/*
+ * inode_to_path: reconstruct the full path for an
+ * inode by walking up the directory tree via DBDIRENT.
+ * Returns a freshly allocated path string, or NULL
+ * if not found.  Caller must s_free() the result.
+ *
+ * Works by: for each inode, look up its DDSTAT to get
+ * the filename, then find which parent directory
+ * contains it via DBDIRENT reverse lookup.
+ */
+char *inode_to_path(unsigned long long inode)
+{
+    char *components[256];
+    int depth = 0;
+    unsigned long long cur_ino = inode;
+    DAT *dskdata;
+    DDSTAT *ddstat;
+    DBC *cur;
+    DBT key, data;
+    int ret;
+    unsigned long long parent_ino;
+    int found;
+    char *result;
+    int total_len;
+    int idx;
+
+    FUNC;
+    /* Root inode is always 1 */
+    if (cur_ino == 1)
+        return s_strdup("/");
+
+    bdb_lock((char *) __PRETTY_FUNCTION__);
+
+    while (cur_ino != 1 && depth < 255) {
+        /* Get the filename for cur_ino */
+        dskdata = search_dbdata(DBP, &cur_ino,
+            sizeof(unsigned long long), NOLOCK);
+        if (dskdata == NULL) {
+            release_bdb_lock();
+            goto fail;
+        }
+        ddstat = value_to_ddstat(dskdata);
+        DATfree(dskdata);
+
+        if (strcmp(ddstat->filename, "/") == 0) {
+            ddstatfree(ddstat);
+            break;  /* reached root */
+        }
+        if (ddstat->filename[0] == 0) {
+            /* Hardlinked file: empty DBP filename.
+               Look up a name via DBL. */
+            DAT *lnk = btsearch_keyval(DBL,
+                &cur_ino,
+                sizeof(unsigned long long),
+                NULL, 0, NOLOCK);
+            if (lnk) {
+                DINOINO dino;
+                DAT *nm;
+                memcpy(&dino, lnk->data,
+                       lnk->size);
+                DATfree(lnk);
+                nm = btsearch_keyval(DBL,
+                    &dino, sizeof(DINOINO),
+                    NULL, 0, NOLOCK);
+                if (nm) {
+                    components[depth] =
+                        s_zmalloc(nm->size + 1);
+                    memcpy(components[depth],
+                           nm->data, nm->size);
+                    depth++;
+                    DATfree(nm);
+                    ddstatfree(ddstat);
+                } else {
+                    ddstatfree(ddstat);
+                    release_bdb_lock();
+                    goto fail;
+                }
+            } else {
+                ddstatfree(ddstat);
+                release_bdb_lock();
+                goto fail;
+            }
+        } else {
+            components[depth] =
+                s_strdup(ddstat->filename);
+            depth++;
+            ddstatfree(ddstat);
+        }
+
+        /*
+         * Find the parent: scan DBDIRENT looking
+         * for a directory that contains cur_ino as
+         * a child.
+         */
+        found = 0;
+        dbdirent->cursor(dbdirent, txn, &cur,
+                         DB_READ_UNCOMMITTED);
+        DBTzero(&key);
+        DBTzero(&data);
+        key.data = s_zmalloc(
+            sizeof(unsigned long long));
+        key.flags = DB_DBT_REALLOC;
+        key.size = sizeof(unsigned long long);
+        data.flags = DB_DBT_REALLOC;
+
+        ret = cur->get(cur, &key, &data,
+                       DB_FIRST | DB_READ_UNCOMMITTED);
+        while (ret == 0) {
+            if (data.size
+                == sizeof(unsigned long long)) {
+                unsigned long long child_ino;
+                memcpy(&child_ino, data.data,
+                    sizeof(unsigned long long));
+                if (child_ino == cur_ino) {
+                    unsigned long long key_ino;
+                    memcpy(&key_ino, key.data,
+                        sizeof(unsigned long long));
+                    if (key_ino != cur_ino) {
+                        parent_ino = key_ino;
+                        found = 1;
+                        break;
+                    }
+                }
+            }
+            ret = cur->get(cur, &key, &data,
+                DB_NEXT | DB_READ_UNCOMMITTED);
+        }
+        if (data.data)
+            s_free(data.data);
+        if (key.data)
+            s_free(key.data);
+        if (cur)
+            cur->close(cur);
+
+        if (!found) {
+            /* Probably reached root indirectly */
+            break;
+        }
+        cur_ino = parent_ino;
+    }
+
+    release_bdb_lock();
+
+    if (depth == 0)
+        return s_strdup("/");
+
+    /* Build path from components (reverse order) */
+    total_len = 1;  /* leading '/' */
+    for (idx = depth - 1; idx >= 0; idx--)
+        total_len += strlen(components[idx]) + 1;
+
+    result = s_malloc(total_len + 1);
+    result[0] = 0;
+    for (idx = depth - 1; idx >= 0; idx--) {
+        strcat(result, "/");
+        strcat(result, components[idx]);
+        s_free(components[idx]);
+    }
+
+    EFUNC;
+    return result;
+
+fail:
+    for (idx = 0; idx < depth; idx++)
+        s_free(components[idx]);
+    return NULL;
+}
+
+/*
+ * fs_readdir_ll: low-level readdir for the BDB
+ * backend.  Fills buf using fuse_add_direntry().
+ * Returns the number of bytes used in buf.
+ */
+size_t fs_readdir_ll(fuse_req_t req,
+                     unsigned long long dir_ino,
+                     char *buf, size_t bufsize,
+                     off_t off)
+{
+    DBC *cur;
+    DBT key, data;
+    int ret;
+    DAT *filedata;
+    DDSTAT *ddstat;
+    struct stat stbuf;
+    size_t buf_used = 0;
+    size_t entsize;
+    off_t idx = 0;
+    char *bname;
+
+    FUNC;
+    bdb_lock((char *) __PRETTY_FUNCTION__);
+
+    dbdirent->cursor(dbdirent, txn, &cur,
+                     DB_READ_UNCOMMITTED);
+    DBTzero(&key);
+    DBTzero(&data);
+    key.data = s_zmalloc(sizeof(unsigned long long));
+    memcpy(key.data, &dir_ino,
+           sizeof(unsigned long long));
+    key.flags = DB_DBT_REALLOC;
+    key.size = sizeof(unsigned long long);
+    data.flags = DB_DBT_REALLOC;
+
+    ret = cur->get(cur, &key, &data,
+                   DB_SET | DB_READ_UNCOMMITTED);
+    if (ret == 0) {
+        do {
+            unsigned long long child_ino;
+            memcpy(&child_ino, data.data,
+                   sizeof(unsigned long long));
+
+            /* Skip self-referencing entries */
+            if (child_ino == dir_ino)
+                goto next_entry;
+
+            filedata = search_dbdata(DBP,
+                &child_ino,
+                sizeof(unsigned long long),
+                NOLOCK);
+            if (filedata == NULL)
+                goto next_entry;
+
+            ddstat = value_to_ddstat(filedata);
+            DATfree(filedata);
+
+            bname = s_basename(ddstat->filename);
+            if (bname == NULL
+                || strcmp(bname, "/") == 0) {
+                if (bname)
+                    s_free(bname);
+                ddstatfree(ddstat);
+                goto next_entry;
+            }
+
+            /* Skip entries before 'off' */
+            if (idx < off) {
+                idx++;
+                s_free(bname);
+                ddstatfree(ddstat);
+                goto next_entry;
+            }
+
+            memcpy(&stbuf, &ddstat->stbuf,
+                   sizeof(struct stat));
+            entsize = fuse_add_direntry(
+                req, buf + buf_used,
+                bufsize - buf_used,
+                bname, &stbuf, idx + 1);
+
+            s_free(bname);
+
+            /*
+             * If hardlink (empty filename), get
+             * the link name from DBL.
+             */
+            if (ddstat->filename[0] == 0) {
+                DINOINO dinoino;
+                DBC *lcur;
+                DBT lkey, ldata;
+                int lret;
+
+                dinoino.dirnode = dir_ino;
+                dinoino.inode =
+                    ddstat->stbuf.st_ino;
+                dbl->cursor(dbl, txn, &lcur,
+                    DB_READ_UNCOMMITTED);
+                DBTzero(&lkey);
+                DBTzero(&ldata);
+                lkey.data =
+                    s_zmalloc(sizeof(DINOINO));
+                memcpy(lkey.data, &dinoino,
+                       sizeof(DINOINO));
+                lkey.flags = DB_DBT_REALLOC;
+                lkey.size = sizeof(DINOINO);
+                ldata.flags = DB_DBT_REALLOC;
+
+                lret = lcur->get(lcur,
+                    &lkey, &ldata,
+                    DB_SET | DB_READ_UNCOMMITTED);
+                if (lret == 0) {
+                    /* Re-add with the right
+                       name */
+                    char linkname[257];
+                    size_t nlen =
+                        ldata.size < 256
+                        ? ldata.size : 256;
+                    memcpy(linkname,
+                           ldata.data,
+                           nlen);
+                    linkname[nlen] = 0;
+                    /* Recalculate entsize */
+                    buf_used -= entsize;
+                    entsize =
+                        fuse_add_direntry(
+                            req,
+                            buf + buf_used,
+                            bufsize - buf_used,
+                            linkname, &stbuf,
+                            idx + 1);
+                }
+                if (ldata.data)
+                    s_free(ldata.data);
+                if (lkey.data)
+                    s_free(lkey.data);
+                if (lcur)
+                    lcur->close(lcur);
+            }
+            ddstatfree(ddstat);
+
+            if (entsize > bufsize - buf_used) {
+                /* Buffer full */
+                break;
+            }
+            buf_used += entsize;
+            idx++;
+
+          next_entry:
+            ;
+        } while (0 ==
+                 cur->get(cur, &key, &data,
+                     DB_NEXT_DUP
+                     | DB_READ_UNCOMMITTED));
+    }
+    if (data.data)
+        s_free(data.data);
+    if (key.data)
+        s_free(key.data);
+    if (cur)
+        cur->close(cur);
+    release_bdb_lock();
+    EFUNC;
+    return buf_used;
 }
 
 #endif

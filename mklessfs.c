@@ -52,6 +52,7 @@
 #endif
 #include "lib_common.h"
 #ifdef BERKELEYDB
+#include <db.h>
 #include "lib_bdb.h"
 #elif defined(LMDB)
 #include "lib_lmdb.h"
