@@ -1035,8 +1035,9 @@ int file_unlink_file(const char *path)
     res = dbstat(dname, &dirst, 0);
     if (S_ISLNK(st.st_mode) && haslinks == 1) {
         LDEBUG("unlink symlink %s inode %llu", path, inode);
-        delete_key(DBS, &inode, sizeof(unsigned long long),
-                   (char *) __PRETTY_FUNCTION__);
+        delete_inode_key(DBS, inode, &inode,
+                         sizeof(unsigned long long),
+                         (char *) __PRETTY_FUNCTION__);
         LDEBUG("unlink symlink done %s", path);
     }
     inobno.inode = inode;
@@ -1052,24 +1053,29 @@ int file_unlink_file(const char *path)
             &st, 0, bname, 1);
         if (0 !=
             (res =
-             btdelete_curkey(DBDIRENT, &dirst.st_ino,
-                             sizeof(unsigned long long), &inode,
-                             sizeof(unsigned long long),
-                             (char *) __PRETTY_FUNCTION__))) {
+             btdelete_inode_curkey(
+                 DBDIRENT,
+                 (unsigned long long) dirst.st_ino,
+                 &dirst.st_ino,
+                 sizeof(unsigned long long),
+                 &inode,
+                 sizeof(unsigned long long),
+                 (char *) __PRETTY_FUNCTION__))) {
             s_free(bname);
             s_free(dname);
             LDEBUG("file_unlink_file : %lu : %llu", dirst.st_ino, inode);
             return (res);
         }
-        delete_key(DBP, (unsigned char *) &inode,
-                   sizeof(unsigned long long),
-                   (char *) __PRETTY_FUNCTION__);
+        delete_inode_key(DBP, inode, &inode,
+                         sizeof(unsigned long long),
+                         (char *) __PRETTY_FUNCTION__);
         LDEBUG("file_unlink_file : unlinked DBDIRENT %lu : %llu",
                dirst.st_ino, inode);
     } else {
         dataptr =
-            search_dbdata(DBP, (unsigned char *) &inode,
-                          sizeof(unsigned long long), LOCK);
+            search_inode_dbdata(DBP, inode, &inode,
+                                sizeof(unsigned long long),
+                                LOCK);
         if (dataptr == NULL) {
             die_dataerr("Failed to find file %llu", inode);
         }
@@ -1081,20 +1087,25 @@ int file_unlink_file(const char *path)
         ddstat->stbuf.st_mtim.tv_nsec = 0;
         dinoino.dirnode = dirst.st_ino;
         dinoino.inode = ddstat->stbuf.st_ino;
-        dir_links = count_dirlinks(&dinoino, sizeof(DINOINO));
+        dir_links = count_dirlinks_inode(&dinoino,
+                        sizeof(DINOINO), dinoino.inode);
         res =
-            btdelete_curkey(DBL, &dinoino, sizeof(DINOINO), bname,
-                            strlen(bname), (char *) __PRETTY_FUNCTION__);
+            btdelete_inode_curkey(DBL, dinoino.inode,
+                            &dinoino, sizeof(DINOINO),
+                            bname, strlen(bname),
+                            (char *) __PRETTY_FUNCTION__);
         /* Only remove the inode->DINOINO reverse mapping
            when no more links from this dir remain for
            this inode. LMDB DUPSORT stores identical
            key-value pairs only once, unlike BDB. */
         {
-            DAT *remaining = btsearch_keyval(
-                DBL, &dinoino, sizeof(DINOINO),
+            DAT *remaining = btsearch_inode_keyval(
+                DBL, dinoino.inode,
+                &dinoino, sizeof(DINOINO),
                 NULL, 0, LOCK);
             if (remaining == NULL) {
-                btdelete_curkey(DBL,
+                btdelete_inode_curkey(DBL,
+                    ddstat->stbuf.st_ino,
                     &ddstat->stbuf.st_ino,
                     sizeof(unsigned long long),
                     &dinoino, sizeof(DINOINO),
@@ -1106,25 +1117,35 @@ int file_unlink_file(const char *path)
 // Restore to regular file settings and clean up.
         if (ddstat->stbuf.st_nlink == 1) {
             vdirnode =
-                btsearch_keyval(DBL, &ddstat->stbuf.st_ino,
-                                sizeof(unsigned long long), NULL, 0, LOCK);
+                btsearch_inode_keyval(DBL,
+                                ddstat->stbuf.st_ino,
+                                &ddstat->stbuf.st_ino,
+                                sizeof(unsigned long long),
+                                NULL, 0, LOCK);
             memcpy(&dinoino, vdirnode->data, vdirnode->size);
             DATfree(vdirnode);
             fname =
-                btsearch_keyval(DBL, &dinoino, sizeof(DINOINO),
+                btsearch_inode_keyval(DBL, dinoino.inode,
+                                &dinoino, sizeof(DINOINO),
                                 NULL, 0, LOCK);
             memcpy(&ddstat->filename, fname->data, fname->size);
             DATfree(fname);
             LDEBUG
                 ("unlink_file : Restore %s to regular file settings and clean up.",
                  ddstat->filename);
-            btdelete_curkey(DBL, &dinoino, sizeof(DINOINO),
-                            ddstat->filename, strlen(ddstat->filename),
+            btdelete_inode_curkey(DBL, dinoino.inode,
+                            &dinoino, sizeof(DINOINO),
+                            ddstat->filename,
+                            strlen(ddstat->filename),
                             (char *) __PRETTY_FUNCTION__);
-            btdelete_curkey(DBL, &ddstat->stbuf.st_ino,
-                            sizeof(unsigned long long), &dinoino,
-                            sizeof(DINOINO), (char *) __PRETTY_FUNCTION__);
-            btdelete_curkey(DBL, &inode, sizeof(unsigned long long),
+            btdelete_inode_curkey(DBL,
+                            ddstat->stbuf.st_ino,
+                            &ddstat->stbuf.st_ino,
+                            sizeof(unsigned long long),
+                            &dinoino, sizeof(DINOINO),
+                            (char *) __PRETTY_FUNCTION__);
+            btdelete_inode_curkey(DBL, inode,
+                            &inode, sizeof(unsigned long long),
                             &dinoino, sizeof(DINOINO),
                             (char *) __PRETTY_FUNCTION__);
             res = 0;
@@ -1132,17 +1153,22 @@ int file_unlink_file(const char *path)
         if (dir_links == 1) {
             if (0 !=
                 (res =
-                 btdelete_curkey(DBDIRENT, &dirst.st_ino,
-                                 sizeof(unsigned long long), &inode,
-                                 sizeof(unsigned long long),
-                                 (char *) __PRETTY_FUNCTION__))) {
+                 btdelete_inode_curkey(
+                     DBDIRENT,
+                     (unsigned long long) dirst.st_ino,
+                     &dirst.st_ino,
+                     sizeof(unsigned long long),
+                     &inode,
+                     sizeof(unsigned long long),
+                     (char *) __PRETTY_FUNCTION__))) {
                 die_dataerr("unlink_file : Failed to delete record.");
             }
         }
         ddbuf =
             create_ddbuf(ddstat->stbuf, ddstat->filename,
                          ddstat->real_size);
-        bin_write_dbdata(DBP, &inode, sizeof(unsigned long long),
+        bin_write_inode_dbdata(DBP, inode, &inode,
+                         sizeof(unsigned long long),
                          (void *) ddbuf->data, ddbuf->size);
         DATfree(dataptr);
         DATfree(ddbuf);
