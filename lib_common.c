@@ -203,8 +203,6 @@ void mkchunk_dir(char *path)
        if ( -1 == chdir("..")) die_syserr();
     }
 }
-
-
 unsigned char *thash(unsigned char *buf, int size)
 {
     unsigned char *hash = s_malloc(BLAKE3_OUT_LEN);
@@ -214,8 +212,6 @@ unsigned char *thash(unsigned char *buf, int size)
     blake3_hasher_finalize(&hasher, hash, BLAKE3_OUT_LEN);
     return hash;
 }
-
-
 void check_datafile_sanity()
 {
     struct stat stbuf;
@@ -337,8 +333,6 @@ void erase_p2i()
     release_cachep2i_lock();
     return;
 }
-
-
 /* Compare two list elements in INOBNO order.
    `a' specifies the pointer to one element.
    `b' specifies the pointer to the other element.
@@ -515,8 +509,6 @@ void delete_hash_note(unsigned char *hash)
     tctreeout(hashtree, (void *) hash, config->hashlen);
     release_hash_lock();
 }
-
-
 void create_inode_note(unsigned long long inode)
 {
     wait_inode_pending(inode);
@@ -640,8 +632,6 @@ int try_global_lock()
     EFUNC;
     return (res);
 }
-
-
 int try_repl_lock()
 {
     int res;
@@ -659,8 +649,6 @@ int try_replbl_lock()
     EFUNC;
     return (res);
 }
-
-
 void write_lock(const char *msg)
 {
 #ifdef DBGLOCK
@@ -668,8 +656,6 @@ void write_lock(const char *msg)
     deltatime.tv_sec = time(NULL) + LOCK_TIMEOUT;
     deltatime.tv_nsec = 0;
     int err_code;
-
-
     err_code = pthread_mutex_timedlock(&write_mutex, &deltatime);
     if (err_code != 0) {
         die_lock_report(msg, __PRETTY_FUNCTION__);
@@ -686,8 +672,6 @@ void release_write_lock()
     pthread_mutex_unlock(&write_mutex);
     return;
 }
-
-
 void cachep2i_lock(const char *msg)
 {
 #ifdef DBGLOCK
@@ -695,8 +679,6 @@ void cachep2i_lock(const char *msg)
     deltatime.tv_sec = time(NULL) + LOCK_TIMEOUT;
     deltatime.tv_nsec = 0;
     int err_code;
-
-
     err_code = pthread_mutex_timedlock(&cachep2i_mutex, &deltatime);
     if (err_code != 0) {
         die_lock_report(msg, __PRETTY_FUNCTION__);
@@ -720,8 +702,6 @@ int try_cachep2i_lock()
     res = pthread_mutex_trylock(&cachep2i_mutex);
     return (res);
 }
-
-
 int try_write_lock()
 {
     int res;
@@ -1190,8 +1170,6 @@ int path_from_cache(char *path, struct stat *stbuf)
     LDEBUG("path_from_cache : return  %s %i", path, res);
     return (res);
 }
-
-
 int dbstat(const char *filename, struct stat *stbuf, bool cache_request)
 {
     int retcode = 0;
@@ -1206,8 +1184,6 @@ int dbstat(const char *filename, struct stat *stbuf, bool cache_request)
     bname = s_basename((char *) filename);
     dupdname = s_strdup((char *) filename);
     mdupdname = dupdname;
-
-
     if (!path_from_cache((char *) filename, stbuf)) {
         // Walk the directory
         retcode = get_dir_inode(dupdname, stbuf, cache_request);
@@ -1973,8 +1949,6 @@ void hash_update_filesize(MEMDDSTAT * memddstat, unsigned long long inode)
 DAT *check_block_exists(INOBNO * inobno)
 {
     DAT *data = NULL;
-    if (!config->deduplication)
-        return NULL;
     FUNC;
     /* FILE_IO/CHUNK_IO writes DBB to shard 0;
      * use matching shard-0 lookup.  LMDB mode
@@ -3901,8 +3875,6 @@ char *ascii_hash(unsigned char *bhash)
     }
     return (ascii_hash);
 }
-
-
 void open_trees()
 {
     workqtree = tctreenew();
