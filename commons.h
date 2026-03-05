@@ -26,3 +26,8 @@ extern const char *hash_lockedby;
 extern const char *meta_lockedby;
 extern const char *offset_lockedby;
 extern const char *cachep2i_lockedby;
+
+/* FLEX_COMP policy trees */
+extern TCTREE *dir_policy_tree;
+extern TCTREE *inode_policy_cache;
+extern pthread_mutex_t policy_mutex;

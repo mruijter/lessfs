@@ -481,6 +481,9 @@ static void ll_init(void *userdata,
         bdb_restart_truncation();
 #endif
     }
+    /* FLEX_COMP: load per-directory policies */
+    load_all_policies();
+
     EFUNC;
 }
 
@@ -540,6 +543,49 @@ static void ll_destroy(void *userdata)
 /*
  * lookup: resolve name in parent directory.
  */
+
+/* ============================================================
+ *  FLEX_COMP: synthetic .lessfs_policy helpers
+ * ============================================================ */
+
+/*
+ * is_toplevel_dir_ll: lightweight check using
+ * DBDIRENT — is this dir a direct child of root?
+ */
+static int is_toplevel_dir_ll(
+    unsigned long long inode)
+{
+    return is_toplevel_dir(inode);
+}
+
+/*
+ * fill_policy_stat: populate a stat structure for
+ * a synthetic policy inode.
+ */
+static void fill_policy_stat(
+    unsigned long long synth_ino,
+    struct stat *stbuf)
+{
+    memset(stbuf, 0, sizeof(struct stat));
+    stbuf->st_ino = synth_ino;
+    stbuf->st_dev = 999988;
+    stbuf->st_uid = 0;
+    stbuf->st_gid = 0;
+    stbuf->st_ctim.tv_sec = time(NULL);
+    stbuf->st_mtim.tv_sec = stbuf->st_ctim.tv_sec;
+    stbuf->st_atim.tv_sec = stbuf->st_ctim.tv_sec;
+
+    if (POLICY_TYPE(synth_ino) == SYNTH_DIR) {
+        stbuf->st_mode = S_IFDIR | 0755;
+        stbuf->st_nlink = 2;
+        stbuf->st_size = 4096;
+    } else {
+        stbuf->st_mode = S_IFREG | 0644;
+        stbuf->st_nlink = 1;
+        stbuf->st_size = 16; /* approximate */
+    }
+}
+
 static void ll_lookup(fuse_req_t req,
                       fuse_ino_t parent,
                       const char *name)
@@ -553,6 +599,65 @@ static void ll_lookup(fuse_req_t req,
         fuse_reply_err(req, ENAMETOOLONG);
         return;
     }
+
+    /* FLEX_COMP: intercept .lessfs_policy lookups */
+    if (IS_POLICY_INO(parent_ino)
+        && POLICY_TYPE(parent_ino) == SYNTH_DIR) {
+        /* Looking up a child of .lessfs_policy */
+        unsigned long long real_dir =
+            POLICY_PARENT_INO(parent_ino);
+        struct stat stbuf;
+        unsigned long long child_ino = 0;
+
+        if (0 == strcmp(name, "compression")) {
+            child_ino = MAKE_POLICY_INO(
+                real_dir, SYNTH_COMP);
+        } else if (0 == strcmp(name,
+                               "deduplication")) {
+            child_ino = MAKE_POLICY_INO(
+                real_dir, SYNTH_DEDUP);
+        } else if (0 == strcmp(name, ".")
+                   || 0 == strcmp(name, "..")) {
+            child_ino = parent_ino;
+        }
+        if (child_ino != 0) {
+            memset(&entry, 0, sizeof(entry));
+            fill_policy_stat(child_ino,
+                             &entry.attr);
+            entry.ino = child_ino;
+            entry.attr_timeout = 1.0;
+            entry.entry_timeout = 1.0;
+            fuse_reply_entry(req, &entry);
+            EFUNC;
+            return;
+        }
+        fuse_reply_err(req, ENOENT);
+        return;
+    }
+
+    if (0 == strcmp(name, LESSFS_POLICY_DIR)
+        && !IS_POLICY_INO(parent_ino)) {
+        /* Check if parent is a top-level dir */
+        get_global_lock(
+            (char *) __PRETTY_FUNCTION__);
+        if (is_toplevel_dir_ll(parent_ino)) {
+            unsigned long long synth_ino =
+                MAKE_POLICY_INO(parent_ino,
+                                SYNTH_DIR);
+            release_global_lock();
+            memset(&entry, 0, sizeof(entry));
+            fill_policy_stat(synth_ino,
+                             &entry.attr);
+            entry.ino = synth_ino;
+            entry.attr_timeout = 1.0;
+            entry.entry_timeout = 1.0;
+            fuse_reply_entry(req, &entry);
+            EFUNC;
+            return;
+        }
+        release_global_lock();
+    }
+
     get_global_lock((char *) __PRETTY_FUNCTION__);
 
     ddstat = dnode_bname_to_inode(
@@ -600,6 +705,14 @@ static void ll_getattr(fuse_req_t req,
     FUNC;
     memset(&stbuf, 0, sizeof(stbuf));
 
+    /* FLEX_COMP: synthetic policy inodes */
+    if (IS_POLICY_INO(ino)) {
+        fill_policy_stat(ino, &stbuf);
+        fuse_reply_attr(req, &stbuf, 1.0);
+        EFUNC;
+        return;
+    }
+
     /*
      * If fi is set and fi->fh is valid, use it.
      * This covers the unlinked-but-open case
@@ -646,6 +759,16 @@ static void ll_setattr(fuse_req_t req,
     DDSTAT *ddstat;
 
     FUNC;
+
+    /* FLEX_COMP: setattr on synthetic policy inodes
+       is a no-op — just return the synthetic stat. */
+    if (IS_POLICY_INO(ino)) {
+        fill_policy_stat(ino, &stbuf);
+        fuse_reply_attr(req, &stbuf, 1.0);
+        EFUNC;
+        return;
+    }
+
     if (config->replication == 1
         && config->replication_role == 1) {
         fuse_reply_err(req, EPERM);
@@ -956,6 +1079,39 @@ static void ll_create(fuse_req_t req,
         fuse_reply_err(req, ENAMETOOLONG);
         return;
     }
+
+    /* FLEX_COMP: intercept create inside a
+       .lessfs_policy dir — treat as open since
+       these virtual files always exist. */
+    if (IS_POLICY_INO(parent_ino)
+        && POLICY_TYPE(parent_ino) == SYNTH_DIR) {
+        unsigned long long real_dir =
+            POLICY_PARENT_INO(parent_ino);
+        unsigned long long child_ino = 0;
+        if (0 == strcmp(name, "compression"))
+            child_ino = MAKE_POLICY_INO(
+                real_dir, SYNTH_COMP);
+        else if (0 == strcmp(name,
+                             "deduplication"))
+            child_ino = MAKE_POLICY_INO(
+                real_dir, SYNTH_DEDUP);
+        if (child_ino != 0) {
+            memset(&entry, 0, sizeof(entry));
+            fill_policy_stat(child_ino,
+                             &entry.attr);
+            entry.ino = child_ino;
+            entry.attr_timeout = 1.0;
+            entry.entry_timeout = 1.0;
+            fi->fh = child_ino;
+            fi->direct_io = 1;
+            fuse_reply_create(req, &entry, fi);
+            EFUNC;
+            return;
+        }
+        fuse_reply_err(req, ENOENT);
+        return;
+    }
+
     if (config->replication == 1
         && config->replication_role == 1) {
         fuse_reply_err(req, EPERM);
@@ -1228,6 +1384,14 @@ static void ll_unlink(fuse_req_t req,
     int file_is_open = 0;
 
     FUNC;
+
+    /* FLEX_COMP: virtual policy files — pretend
+       removal succeeds so rm -rf works. */
+    if (IS_POLICY_INO(parent_ino)) {
+        fuse_reply_err(req, 0);
+        return;
+    }
+
     if (strlen(name) > LESSFS_NAME_MAX) {
         fuse_reply_err(req, ENAMETOOLONG);
         return;
@@ -1415,6 +1579,14 @@ static void ll_rmdir(fuse_req_t req,
                      fuse_ino_t parent,
                      const char *name)
 {
+    /* FLEX_COMP: virtual policy dir — pretend
+       removal succeeds so rm -rf works. */
+    if (IS_POLICY_INO(parent)
+        || 0 == strcmp(name, LESSFS_POLICY_DIR)) {
+        fuse_reply_err(req, 0);
+        return;
+    }
+
     int res;
     unsigned long long parent_ino = parent;
     char *fullpath;
@@ -1450,6 +1622,27 @@ static void ll_rmdir(fuse_req_t req,
     res = fs_rmdir(fullpath);
     s_free(fullpath);
     s_free(parentpath);
+
+    /* FLEX_COMP: if we just removed a top-level
+       directory, delete its persisted policy. */
+    if (res == 0) {
+        DDSTAT *rm_dd = dnode_bname_to_inode(
+            &parent_ino,
+            sizeof(unsigned long long),
+            (char *) name);
+        if (rm_dd == NULL) {
+            /* Already gone — look up by name
+               is too late.  Use invalidate. */
+            invalidate_policy_cache(0);
+        } else {
+            unsigned long long rm_ino =
+                rm_dd->stbuf.st_ino;
+            ddstatfree(rm_dd);
+            { DIR_POLICY zero_pol = {0, 0}; set_dir_policy(rm_ino, &zero_pol); }
+            invalidate_policy_cache(0);
+        }
+    }
+
     release_global_lock();
 
     fuse_reply_err(req, res < 0 ? -res : 0);
@@ -1713,6 +1906,14 @@ static void ll_open(fuse_req_t req,
     struct stat stbuf;
     int res;
     unsigned long long inode = ino;
+
+    /* FLEX_COMP: open on policy control files */
+    if (IS_POLICY_INO(ino)) {
+        fi->fh = ino;
+        fi->direct_io = 1;
+        fuse_reply_open(req, fi);
+        return;
+    }
     char *bname;
     DAT *ddbuf;
     const char *dataptr;
@@ -1807,6 +2008,52 @@ static void ll_read(fuse_req_t req,
     char *buf;
 
     FUNC;
+
+    /* FLEX_COMP: read from policy control files */
+    if (IS_POLICY_INO(fi->fh)) {
+        unsigned long long real_dir =
+            POLICY_PARENT_INO(fi->fh);
+        unsigned int ptype =
+            POLICY_TYPE(fi->fh);
+        DIR_POLICY *pol;
+        DIR_POLICY defpol;
+        char valbuf[64];
+        size_t vlen;
+
+        defpol.compression =
+            config->compression;
+        defpol.deduplication =
+            config->deduplication;
+        pol = get_dir_policy(real_dir);
+        if (NULL == pol)
+            pol = &defpol;
+
+        if (ptype == SYNTH_COMP) {
+            snprintf(valbuf, sizeof(valbuf),
+                     "%s\n",
+                     compression_char_to_name(
+                         pol->compression));
+        } else if (ptype == SYNTH_DEDUP) {
+            snprintf(valbuf, sizeof(valbuf),
+                     "%u\n",
+                     (unsigned) pol->deduplication);
+        } else {
+            fuse_reply_err(req, EINVAL);
+            return;
+        }
+        vlen = strlen(valbuf);
+        if ((size_t) offset >= vlen) {
+            fuse_reply_buf(req, NULL, 0);
+        } else {
+            if (offset + size > vlen)
+                size = vlen - offset;
+            fuse_reply_buf(req,
+                           valbuf + offset, size);
+        }
+        EFUNC;
+        return;
+    }
+
     get_global_lock((char *) __PRETTY_FUNCTION__);
     write_lock((char *) __PRETTY_FUNCTION__);
 
@@ -1857,6 +2104,77 @@ static void ll_write(fuse_req_t req,
     INOBNO inobno;
 
     FUNC;
+
+    /* FLEX_COMP: write to policy control files */
+    if (IS_POLICY_INO(fi->fh)) {
+        unsigned long long real_dir =
+            POLICY_PARENT_INO(fi->fh);
+        unsigned int ptype =
+            POLICY_TYPE(fi->fh);
+        DIR_POLICY pol;
+        DIR_POLICY *existing;
+        char valbuf[64];
+        size_t cplen;
+
+        /* Get current or default policy */
+        existing = get_dir_policy(real_dir);
+        if (existing) {
+            memcpy(&pol, existing,
+                   sizeof(DIR_POLICY));
+        } else {
+            pol.compression =
+                config->compression;
+            pol.deduplication =
+                config->deduplication;
+        }
+
+        /* Copy and NUL-terminate the input */
+        cplen = size;
+        if (cplen >= sizeof(valbuf))
+            cplen = sizeof(valbuf) - 1;
+        memcpy(valbuf, buf, cplen);
+        valbuf[cplen] = '\0';
+        /* Strip trailing newline */
+        if (cplen > 0
+            && valbuf[cplen - 1] == '\n')
+            valbuf[cplen - 1] = '\0';
+
+        if (ptype == SYNTH_COMP) {
+            unsigned char new_comp =
+                compression_name_to_char(valbuf);
+            /* Accept '1' as "use default" */
+            if (0 == strcmp(valbuf, "1"))
+                new_comp = config->compression;
+            pol.compression = new_comp;
+            LINFO("FLEX_COMP: dir inode %llu "
+                  "compression -> %s",
+                  real_dir,
+                  compression_char_to_name(
+                      new_comp));
+        } else if (ptype == SYNTH_DEDUP) {
+            if (valbuf[0] == '0')
+                pol.deduplication = 0;
+            else if (valbuf[0] == '1')
+                pol.deduplication = 1;
+            else {
+                fuse_reply_err(req, EINVAL);
+                return;
+            }
+            LINFO("FLEX_COMP: dir inode %llu "
+                  "deduplication -> %u",
+                  real_dir,
+                  (unsigned) pol.deduplication);
+        } else {
+            fuse_reply_err(req, EINVAL);
+            return;
+        }
+
+        set_dir_policy(real_dir, &pol);
+        fuse_reply_write(req, size);
+        EFUNC;
+        return;
+    }
+
     if (config->nospace == ENOSPC) {
         fuse_reply_err(req, ENOSPC);
         return;
@@ -1989,6 +2307,13 @@ static void ll_opendir(fuse_req_t req,
                        fuse_ino_t ino,
                        struct fuse_file_info *fi)
 {
+    /* FLEX_COMP: allow opening policy dirs */
+    if (IS_POLICY_INO(ino)) {
+        fi->fh = ino;
+        fuse_reply_open(req, fi);
+        return;
+    }
+
     fi->fh = ino;
     fuse_reply_open(req, fi);
 }
@@ -2012,6 +2337,80 @@ static void ll_readdir(fuse_req_t req,
     int idx = 0;
 
     FUNC;
+
+    /* FLEX_COMP: readdir on a .lessfs_policy dir */
+    if (IS_POLICY_INO(dir_ino)
+        && POLICY_TYPE(dir_ino) == SYNTH_DIR) {
+        unsigned long long real_dir =
+            POLICY_PARENT_INO(dir_ino);
+        struct stat stbuf;
+        off_t cur_idx = 0;
+
+        buf = s_zmalloc(size);
+
+        /* . */
+        if (cur_idx >= off) {
+            fill_policy_stat(dir_ino, &stbuf);
+            entsize = fuse_add_direntry(
+                req, buf + buf_used,
+                size - buf_used,
+                ".", &stbuf, cur_idx + 1);
+            if (entsize <= size - buf_used)
+                buf_used += entsize;
+        }
+        cur_idx++;
+
+        /* .. */
+        if (cur_idx >= off) {
+            memset(&stbuf, 0, sizeof(stbuf));
+            stbuf.st_ino = real_dir;
+            stbuf.st_mode = S_IFDIR | 0755;
+            entsize = fuse_add_direntry(
+                req, buf + buf_used,
+                size - buf_used,
+                "..", &stbuf, cur_idx + 1);
+            if (entsize <= size - buf_used)
+                buf_used += entsize;
+        }
+        cur_idx++;
+
+        /* compression */
+        if (cur_idx >= off) {
+            fill_policy_stat(
+                MAKE_POLICY_INO(real_dir,
+                                SYNTH_COMP),
+                &stbuf);
+            entsize = fuse_add_direntry(
+                req, buf + buf_used,
+                size - buf_used,
+                "compression", &stbuf,
+                cur_idx + 1);
+            if (entsize <= size - buf_used)
+                buf_used += entsize;
+        }
+        cur_idx++;
+
+        /* deduplication */
+        if (cur_idx >= off) {
+            fill_policy_stat(
+                MAKE_POLICY_INO(real_dir,
+                                SYNTH_DEDUP),
+                &stbuf);
+            entsize = fuse_add_direntry(
+                req, buf + buf_used,
+                size - buf_used,
+                "deduplication", &stbuf,
+                cur_idx + 1);
+            if (entsize <= size - buf_used)
+                buf_used += entsize;
+        }
+
+        fuse_reply_buf(req, buf, buf_used);
+        s_free(buf);
+        EFUNC;
+        return;
+    }
+
     buf = s_zmalloc(size);
 
     get_global_lock((char *) __PRETTY_FUNCTION__);
@@ -2022,6 +2421,26 @@ static void ll_readdir(fuse_req_t req,
      */
     buf_used = fs_readdir_ll(req, dir_ino, buf, size,
                              off);
+
+    /* FLEX_COMP: inject .lessfs_policy for top-level
+       directories.  Use POLICY_DONE_COOKIE as the
+       offset cookie so the kernel won't re-request
+       this entry on the next readdir call. */
+    if (off < POLICY_DONE_COOKIE
+        && is_toplevel_dir_ll(dir_ino)
+        && buf_used < size) {
+        struct stat pol_stbuf;
+        unsigned long long synth_ino =
+            MAKE_POLICY_INO(dir_ino, SYNTH_DIR);
+        fill_policy_stat(synth_ino, &pol_stbuf);
+        entsize = fuse_add_direntry(
+            req, buf + buf_used,
+            size - buf_used,
+            LESSFS_POLICY_DIR,
+            &pol_stbuf, POLICY_DONE_COOKIE);
+        if (entsize <= size - buf_used)
+            buf_used += entsize;
+    }
 
     release_global_lock();
 

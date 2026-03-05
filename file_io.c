@@ -456,7 +456,9 @@ void chunk_write(unsigned char *thehash,DAT *compressed, unsigned long long chun
     s_free(fullpath);
 }
 
-void fl_write_cache(CCACHEDTA * ccachedta, INOBNO * inobno)
+void fl_write_cache(CCACHEDTA * ccachedta,
+    INOBNO * inobno,
+    unsigned char comp_type)
 {
     INUSE *inuse;
     DAT *compressed;
@@ -466,7 +468,9 @@ void fl_write_cache(CCACHEDTA * ccachedta, INOBNO * inobno)
     file_delete_stored(inobno);
     inuse = file_get_inuse((unsigned char *) &ccachedta->hash);
     if (NULL == inuse) {
-        compressed = lfscompress(ccachedta->data, ccachedta->datasize);
+        compressed = lfscompress_policy(
+            ccachedta->data,
+            ccachedta->datasize, comp_type);
         if ( config->blockdata_io_type == CHUNK_IO ) {
            inuse = s_zmalloc(sizeof(INUSE));
            inuse->offset = MEDIUM_PRIO;
@@ -527,7 +531,9 @@ unsigned int file_commit_block(unsigned char *dbdata,
     create_hash_note(stiger);
     inuse = file_get_inuse(stiger);
     if (NULL == inuse) {
-        compressed = lfscompress((unsigned char *) dbdata, dsize);
+        compressed = lfscompress_policy(
+            (unsigned char *) dbdata, dsize,
+            config->compression);
         if ( config->blockdata_io_type == CHUNK_IO ) {
            inuse = s_zmalloc(sizeof(INUSE));
            inuse->offset = MEDIUM_PRIO;

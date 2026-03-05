@@ -206,7 +206,8 @@ void update_meta(unsigned long long, unsigned long, int);
 void lessfs_trans_stamp();
 int db_fs_truncate(struct stat *, off_t, char *, bool);
 void write_trunc_todolist(struct truncate_thread_data *);
-void tc_write_cache(CCACHEDTA *, INOBNO *);
+void tc_write_cache(CCACHEDTA *, INOBNO *,
+                    unsigned char);
 void db_delete_stored(INOBNO *);
 void fil_fuse_info(DDSTAT *, void *, fuse_fill_dir_t,
                    struct fuse_file_info *);
@@ -257,3 +258,57 @@ unsigned long long get_real_size(unsigned long long);
 void add2cache(INOBNO *, const char *, off_t, size_t);
 int check_free_space(char *);
 void freeze_nospace(char *);
+
+/* ============================================================
+ *  FLEX_COMP: Per-directory compression & deduplication policy
+ * ============================================================ */
+typedef struct {
+    unsigned char compression;   /* codec char or 0 */
+    unsigned char deduplication;  /* 0 or 1 */
+} DIR_POLICY;
+
+/* Synthetic inode scheme for .lessfs_policy virtual dirs */
+#define SYNTH_BASE   0x4000000000000000ULL
+#define SYNTH_DIR    0  /* .lessfs_policy dir       */
+#define SYNTH_COMP   1  /* compression control file  */
+#define SYNTH_DEDUP  2  /* deduplication control file */
+
+#define MAKE_POLICY_INO(dir_ino, type) \
+    (SYNTH_BASE | ((unsigned long long)(dir_ino) << 2) \
+     | (unsigned long long)(type))
+#define IS_POLICY_INO(ino) \
+    (((unsigned long long)(ino) & SYNTH_BASE) != 0)
+#define POLICY_PARENT_INO(ino) \
+    (((unsigned long long)(ino) & ~SYNTH_BASE) >> 2)
+#define POLICY_TYPE(ino) \
+    ((unsigned int)((unsigned long long)(ino) & 3))
+
+#define LESSFS_POLICY_DIR ".lessfs_policy"
+
+#define POLICY_DONE_COOKIE 0x7FFFFFFFFFFFFFFELL
+/* Policy tree and cache (defined in lib_common.c) */
+extern TCTREE *dir_policy_tree;
+extern TCTREE *inode_policy_cache;
+extern pthread_mutex_t policy_mutex;
+
+DIR_POLICY *get_dir_policy(
+    unsigned long long top_dir_inode);
+DIR_POLICY resolve_inode_policy(
+    unsigned long long file_inode);
+void set_dir_policy(
+    unsigned long long top_dir_inode,
+    DIR_POLICY *policy);
+void invalidate_policy_cache(
+    unsigned long long file_inode);
+void load_all_policies(void);
+int is_toplevel_dir(unsigned long long inode);
+unsigned long long toplevel_dir_for_inode(
+    unsigned long long file_inode);
+unsigned char compression_name_to_char(
+    const char *name);
+const char *compression_char_to_name(
+    unsigned char comp);
+
+/* Updated lfscompress with explicit compression type */
+DAT *lfscompress_policy(unsigned char *dbdata,
+    unsigned long dsize, unsigned char comp);

@@ -307,6 +307,50 @@ When Lessfs has replication enabled the directory /.lessfs/replication will beco
 "cat /.lessfs/replication/backlog" will show 0 when the slave is up to date. It will show 1 when there is a backlog.
 .br
 When replication is used in 'batch mode' (REPLICATION_PARTNER_IP=-1) then "echo 1 >/.lessfs/replication/rotate_replog" will force the rotation of the replication logfile.
+.SH PER-DIRECTORY COMPRESSION AND DEDUPLICATION
+Lessfs supports per-directory compression and
+deduplication policies for top-level directories
+(direct children of the mount point).
+.PP
+When a top-level directory is created, a virtual
+control directory \fB.lessfs_policy/\fR appears
+inside it.  This directory contains two control files:
+.TP
+\fBcompression\fR
+Read this file to see the current compression
+algorithm for the directory.  Write one of the
+following values to change it:
+\fBnone\fR, \fBqlz\fR, \fBlzo\fR,
+\fBgzip\fR, \fBbzip2\fR, \fBsnappy\fR,
+\fBqlz15\fR, or \fBdisabled\fR.
+The value \fBdisabled\fR stores data without any
+compression.
+.TP
+\fBdeduplication\fR
+Read this file to see whether deduplication is
+enabled (\fB1\fR) or disabled (\fB0\fR).
+Write \fB0\fR or \fB1\fR to change it.
+.PP
+Example:
+.nf
+    mkdir /mnt/backups
+    echo gzip > /mnt/backups/.lessfs_policy/compression
+    echo 0 > /mnt/backups/.lessfs_policy/deduplication
+.fi
+.PP
+Settings take effect for new and overwritten blocks
+only; existing data is not re-encoded.
+The default settings for new directories are
+inherited from \fBCOMPRESSION\fR and
+\fBDEDUPLICATION\fR in
+\fB/etc/lessfs.cfg\fR.
+Settings persist across remounts
+(stored in LMDB with a \fBDIRPOL\fR key prefix
+in DBP).
+.PP
+Subdirectories of a top-level directory inherit the
+parent's policy; they do not get their own
+\fB.lessfs_policy/\fR control directory.
 .SH DIAGNOSTICS
 To debug the filesystem configure lessfs with : ./configure --enable-debug
 .br

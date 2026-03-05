@@ -2889,3 +2889,79 @@ size_t fs_readdir_ll(fuse_req_t req,
 }
 
 #endif /* LMDB */
+
+/* ============================================================
+ *  FLEX_COMP: load persisted per-directory policies
+ * ============================================================ */
+#ifdef LMDB
+void load_policies_from_db(void)
+{
+    MDB_cursor *cur;
+    MDB_val mkey, mdata;
+    int ret, shard;
+    unsigned long long dir_inode;
+    DIR_POLICY pol;
+    int count = 0;
+
+    /*
+     * Scan all shards for keys starting with
+     * "DIRPOL" in the DBP database.  The key is
+     * 14 bytes: "DIRPOL" (6) + inode (8).
+     */
+    for (shard = 0; shard < config->lmdb_db_count;
+         shard++) {
+        bdb_lock_shard(shard,
+            (char *) __PRETTY_FUNCTION__);
+        ret = mdb_cursor_open(
+                  write_txn[shard],
+                  dbi_dbp[shard], &cur);
+        if (ret != 0) {
+            release_bdb_lock_shard(shard);
+            continue;
+        }
+        ret = mdb_cursor_get(cur, &mkey, &mdata,
+                             MDB_FIRST);
+        while (ret == 0) {
+            if (mkey.mv_size == 14
+                && 0 == memcmp(mkey.mv_data,
+                               "DIRPOL", 6)
+                && mdata.mv_size
+                   >= sizeof(DIR_POLICY)) {
+                memcpy(&dir_inode,
+                       (char *) mkey.mv_data + 6,
+                       sizeof(unsigned long long));
+                memcpy(&pol, mdata.mv_data,
+                       sizeof(DIR_POLICY));
+                pthread_mutex_lock(&policy_mutex);
+                tctreeput(dir_policy_tree,
+                          &dir_inode,
+                          sizeof(
+                            unsigned long long),
+                          &pol,
+                          sizeof(DIR_POLICY));
+                pthread_mutex_unlock(&policy_mutex);
+                count++;
+                LINFO("FLEX_COMP: loaded policy "
+                      "for dir inode %llu "
+                      "(comp=%s dedup=%u)",
+                      dir_inode,
+                      compression_char_to_name(
+                          pol.compression),
+                      (unsigned) pol.deduplication);
+            }
+            ret = mdb_cursor_get(cur, &mkey, &mdata,
+                                 MDB_NEXT);
+        }
+        mdb_cursor_close(cur);
+        release_bdb_lock_shard(shard);
+    }
+    LINFO("FLEX_COMP: loaded %d directory policies",
+          count);
+}
+#else
+void load_policies_from_db(void)
+{
+    LINFO("FLEX_COMP: policy loading not "
+          "implemented for this backend");
+}
+#endif

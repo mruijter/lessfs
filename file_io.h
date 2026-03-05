@@ -36,7 +36,8 @@ void file_partial_truncate_block(unsigned long long, unsigned long long,
                                  unsigned int);
 int file_unlink_file(const char *);
 CCACHEDTA *file_update_stored(unsigned char *, INOBNO *, off_t);
-void fl_write_cache(CCACHEDTA *, INOBNO *);
+void fl_write_cache(CCACHEDTA *, INOBNO *,
+                    unsigned char);
 unsigned long long file_read_block(unsigned long long, char *, size_t,
                                    size_t, unsigned long long);
 int file_fs_truncate(struct stat *, off_t, char *, bool);

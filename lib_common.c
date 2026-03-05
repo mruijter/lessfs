@@ -125,6 +125,11 @@ static pthread_mutex_t relax_mutex = PTHREAD_MUTEX_INITIALIZER;
 const char *cachep2i_lockedby;
 static pthread_mutex_t cachep2i_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+/* FLEX_COMP: per-directory policy trees */
+TCTREE *dir_policy_tree;
+TCTREE *inode_policy_cache;
+pthread_mutex_t policy_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 void init_chunk_io()
 {
     char *high;
@@ -2235,20 +2240,25 @@ DAT *lfscompress(unsigned char *dbdata, unsigned long dsize)
 }
 
 unsigned int db_commit_block(unsigned char *dbdata,
-                             INOBNO inobno, unsigned long dsize)
+                             INOBNO inobno,
+                             unsigned long dsize)
 {
     unsigned char *stiger = NULL;
     DAT *compressed;
     unsigned int ret = 0;
+    DIR_POLICY policy;
 
     FUNC;
     unsigned long long inuse;
     LDEBUG("db_commit_block");
+    policy = resolve_inode_policy(inobno.inode);
     stiger = thash(dbdata, dsize);
     create_hash_note(stiger);
     inuse = getInUse(stiger);
     if (0 == inuse) {
-        compressed = lfscompress((unsigned char *) dbdata, dsize);
+        compressed = lfscompress_policy(
+            (unsigned char *) dbdata, dsize,
+            policy.compression);
         ret = compressed->size;
         bin_write_dbdata(DBDTA, stiger, config->hashlen, compressed->data,
                          compressed->size);
@@ -2606,26 +2616,39 @@ void cook_cache(char *key, int ksize, CCACHEDTA * ccachedta, unsigned long seque
 {
     INOBNO *inobno;
     unsigned char *hash;
-    inobno = (INOBNO *) key;
-    LDEBUG("cook_cache : %llu-%llu", inobno->inode, inobno->blocknr);
+    DIR_POLICY policy;
+    int use_dedup;
 
-    if (config->deduplication) {
-        /* Normal deduplication mode - hash content */
-        hash = thash((unsigned char *) &ccachedta->data, ccachedta->datasize);
-        memcpy(&ccachedta->hash, hash, config->hashlen);
+    inobno = (INOBNO *) key;
+    LDEBUG("cook_cache : %llu-%llu",
+           inobno->inode, inobno->blocknr);
+
+    /* FLEX_COMP: resolve per-directory policy */
+    policy = resolve_inode_policy(inobno->inode);
+    use_dedup = policy.deduplication;
+
+    if (use_dedup) {
+        /* Deduplication mode - hash content */
+        hash = thash(
+            (unsigned char *) &ccachedta->data,
+            ccachedta->datasize);
+        memcpy(&ccachedta->hash, hash,
+               config->hashlen);
         free(hash);
     } else {
-        /* No-deduplication mode - use INOBNO directly as key (NO HASHING!) */
-        /* This provides dramatic performance improvement by skipping all hash computation */
-        memcpy(&ccachedta->hash, inobno, sizeof(INOBNO));
-        /* Zero out remaining hash space to maintain consistency */
+        /* No-dedup mode - use INOBNO as key */
+        memcpy(&ccachedta->hash, inobno,
+               sizeof(INOBNO));
         if (config->hashlen > sizeof(INOBNO)) {
-            memset(((char*)&ccachedta->hash) + sizeof(INOBNO), 0,
-                   config->hashlen - sizeof(INOBNO));
+            memset(((char *) &ccachedta->hash)
+                   + sizeof(INOBNO), 0,
+                   config->hashlen
+                   - sizeof(INOBNO));
         }
     }
 
-        fl_write_cache(ccachedta, inobno);
+    fl_write_cache(ccachedta, inobno,
+                   policy.compression);
     return;
 }
 
@@ -2860,7 +2883,9 @@ void write_trunc_todolist(struct truncate_thread_data *trunc_data)
     return;
 }
 
-void tc_write_cache(CCACHEDTA * ccachedta, INOBNO * inobno)
+void tc_write_cache(CCACHEDTA * ccachedta,
+    INOBNO * inobno,
+    unsigned char comp_type)
 {
     DAT *compressed;
 
@@ -2869,7 +2894,9 @@ void tc_write_cache(CCACHEDTA * ccachedta, INOBNO * inobno)
     db_delete_stored(inobno);
     inuse = getInUse((unsigned char *) &ccachedta->hash);
     if (inuse == 0) {
-        compressed = lfscompress(ccachedta->data, ccachedta->datasize);
+        compressed = lfscompress_policy(
+            ccachedta->data,
+            ccachedta->datasize, comp_type);
         bin_write_dbdata(DBDTA, &ccachedta->hash, config->hashlen,
                          compressed->data, compressed->size);
         if (ccachedta->newblock == 1)
@@ -3595,7 +3622,6 @@ void parseconfig(int mklessfs, bool force_optimize)
         if (0 == strcasecmp("disabled", iv) || 0 == strcasecmp("off", iv)) {
             config->deduplication = 0;
             LINFO("Deduplication disabled - no duplicate block detection");
-            config->compression = 0;
         }
     }
     iv = getenv("BACKGROUND_DELETE");
@@ -3883,6 +3909,8 @@ void open_trees()
     inodetree = tctreenew();
     metatree = tctreenew();
     path2inotree = tctreenew();
+    dir_policy_tree = tctreenew();
+    inode_policy_cache = tctreenew();
 }
 
 void close_trees()
@@ -3900,4 +3928,394 @@ void close_trees()
     tctreedel(inodetree);
     tctreedel(metatree);
     tctreedel(path2inotree);
+
+    tctreeclear(dir_policy_tree);
+    tctreeclear(inode_policy_cache);
+    tctreedel(dir_policy_tree);
+    tctreedel(inode_policy_cache);
+}
+
+/* ============================================================
+ *  FLEX_COMP: Per-directory policy implementation
+ * ============================================================ */
+
+unsigned char compression_name_to_char(const char *name)
+{
+    if (NULL == name)
+        return 0;
+    if (0 == strcasecmp("qlz", name)
+        || 0 == strcasecmp("qlz141", name))
+        return 'Q';
+    if (0 == strcasecmp("qlz151", name))
+        return 'R';
+    if (0 == strcasecmp("lzo", name))
+        return 'L';
+    if (0 == strcasecmp("snappy", name))
+        return 'S';
+    if (0 == strcasecmp("gzip", name))
+        return 'G';
+    if (0 == strcasecmp("bzip", name))
+        return 'B';
+    if (0 == strcasecmp("deflate", name))
+        return 'D';
+    if (0 == strcasecmp("disabled", name)
+        || 0 == strcasecmp("none", name)
+        || 0 == strcasecmp("off", name))
+        return 0;
+    return 0;
+}
+
+const char *compression_char_to_name(unsigned char comp)
+{
+    switch (comp) {
+    case 'Q':
+        return "qlz";
+    case 'R':
+        return "qlz151";
+    case 'L':
+        return "lzo";
+    case 'S':
+        return "snappy";
+    case 'G':
+        return "gzip";
+    case 'B':
+        return "bzip";
+    case 'D':
+        return "deflate";
+    case 0:
+        return "disabled";
+    default:
+        return "unknown";
+    }
+}
+
+/*
+ * get_dir_policy: look up the policy for a top-level
+ * directory inode.  Returns pointer to static data
+ * (valid until next policy_mutex release) or NULL if
+ * no per-directory policy is set.
+ */
+DIR_POLICY *get_dir_policy(
+    unsigned long long top_dir_inode)
+{
+    int vsize;
+    DIR_POLICY *result;
+
+    pthread_mutex_lock(&policy_mutex);
+    result = (DIR_POLICY *) tctreeget(
+        dir_policy_tree,
+        &top_dir_inode,
+        sizeof(unsigned long long),
+        &vsize);
+    pthread_mutex_unlock(&policy_mutex);
+    return result;
+}
+
+/*
+ * set_dir_policy: store a per-directory policy both
+ * in-memory and persistently in DBP.
+ */
+void set_dir_policy(
+    unsigned long long top_dir_inode,
+    DIR_POLICY *policy)
+{
+    unsigned char keybuf[14];
+
+    pthread_mutex_lock(&policy_mutex);
+    tctreeput(dir_policy_tree,
+              &top_dir_inode,
+              sizeof(unsigned long long),
+              policy, sizeof(DIR_POLICY));
+    pthread_mutex_unlock(&policy_mutex);
+
+    /* Persist: key = "DIRPOL" + inode */
+    memcpy(keybuf, "DIRPOL", 6);
+    memcpy(keybuf + 6, &top_dir_inode,
+           sizeof(unsigned long long));
+    bin_write_dbdata(DBP, keybuf, 14,
+                     (void *) policy,
+                     sizeof(DIR_POLICY));
+    /* Flush the inode_policy_cache so changed
+       settings take effect for open files. */
+    pthread_mutex_lock(&policy_mutex);
+    tctreeclear(inode_policy_cache);
+    pthread_mutex_unlock(&policy_mutex);
+}
+
+/*
+ * is_toplevel_dir: returns 1 if the given inode is
+ * a direct child directory of root (inode 1).
+ * Uses DBDIRENT to check if root lists this inode.
+ */
+int is_toplevel_dir(unsigned long long inode)
+{
+    DAT *data;
+    struct stat stbuf;
+    unsigned long long root_ino = 1;
+    int result = 0;
+
+    if (inode <= 1)
+        return 0;
+    /* Check this inode is a directory */
+    {
+        DAT *dskdata;
+        DDSTAT *ddstat_check;
+        dskdata = search_inode_dbdata(DBP,
+            inode, &inode,
+            sizeof(unsigned long long), LOCK);
+        if (NULL == dskdata)
+            return 0;
+        ddstat_check = value_to_ddstat(dskdata);
+        DATfree(dskdata);
+        memcpy(&stbuf, &ddstat_check->stbuf,
+               sizeof(struct stat));
+        ddstatfree(ddstat_check);
+    }
+    if (!S_ISDIR(stbuf.st_mode))
+        return 0;
+    /* Check if root (inode 1) lists it as child */
+    data = btsearch_inode_keyval(DBDIRENT,
+        root_ino,
+        &root_ino,
+        sizeof(unsigned long long),
+        &inode,
+        sizeof(unsigned long long), LOCK);
+    if (data != NULL) {
+        result = 1;
+        DATfree(data);
+    }
+    return result;
+}
+
+/*
+ * toplevel_dir_for_inode: given a file inode, find
+ * which top-level directory it belongs to by reading
+ * the filename from metatree and extracting the first
+ * path component.  Returns 0 if file is in root
+ * directly or resolution fails.
+ */
+unsigned long long toplevel_dir_for_inode(
+    unsigned long long file_inode)
+{
+    const char *dataptr;
+    MEMDDSTAT *memddstat;
+    int vsize;
+    char topdir_path[MAX_POSIX_FILENAME_LEN + 2];
+    const char *slash_pos;
+    int comp_len;
+    unsigned long long top_ino;
+
+    /* Try metatree first (in-memory, fast) */
+    meta_lock((char *) __PRETTY_FUNCTION__);
+    dataptr = tctreeget(metatree,
+                        &file_inode,
+                        sizeof(unsigned long long),
+                        &vsize);
+    if (dataptr != NULL) {
+        memddstat = (MEMDDSTAT *) dataptr;
+        /* filename is like "/XYZ/sub/file" */
+        if (memddstat->filename[0] != '/'
+            || memddstat->filename[1] == '\0') {
+            release_meta_lock();
+            return 0;  /* root itself or invalid */
+        }
+        /* Find second slash */
+        slash_pos = strchr(
+            &memddstat->filename[1], '/');
+        if (NULL == slash_pos) {
+            /* No second slash: file is directly
+               in a top-level dir, e.g. "/XYZ" */
+            release_meta_lock();
+            return 0;  /* It IS the top-level dir */
+        }
+        comp_len = (int)(slash_pos
+                         - memddstat->filename);
+        if (comp_len >= (int) sizeof(topdir_path))
+            comp_len = sizeof(topdir_path) - 1;
+        memcpy(topdir_path,
+               memddstat->filename, comp_len);
+        topdir_path[comp_len] = '\0';
+        release_meta_lock();
+    } else {
+        release_meta_lock();
+        /* Fallback: look up DDSTAT from DBP */
+        {
+            DAT *dskdata;
+            DDSTAT *ddstat;
+            dskdata = search_inode_dbdata(DBP,
+                file_inode,
+                &file_inode,
+                sizeof(unsigned long long), LOCK);
+            if (NULL == dskdata)
+                return 0;
+            ddstat = value_to_ddstat(dskdata);
+            DATfree(dskdata);
+            if (ddstat->filename[0] != '/'
+                || ddstat->filename[1] == '\0') {
+                ddstatfree(ddstat);
+                return 0;
+            }
+            slash_pos = strchr(
+                &ddstat->filename[1], '/');
+            if (NULL == slash_pos) {
+                ddstatfree(ddstat);
+                return 0;
+            }
+            comp_len = (int)(slash_pos
+                             - ddstat->filename);
+            if (comp_len
+                >= (int) sizeof(topdir_path))
+                comp_len = sizeof(topdir_path) - 1;
+            memcpy(topdir_path,
+                   ddstat->filename, comp_len);
+            topdir_path[comp_len] = '\0';
+            ddstatfree(ddstat);
+        }
+    }
+
+    /* topdir_path is now like "/XYZ" */
+    top_ino = get_inode(topdir_path);
+    return top_ino;
+}
+
+/*
+ * resolve_inode_policy: return the effective policy
+ * for a given file inode.  Checks the per-inode cache
+ * first, then resolves the top-level directory.
+ * Returns the policy (using global defaults for any
+ * field not overridden).
+ */
+DIR_POLICY resolve_inode_policy(
+    unsigned long long file_inode)
+{
+    DIR_POLICY result;
+    DIR_POLICY *cached;
+    DIR_POLICY *dir_pol;
+    unsigned long long top_ino;
+    int vsize;
+
+    /* Default: use global config */
+    result.compression = config->compression;
+    result.deduplication = config->deduplication;
+
+    /* Check per-inode cache */
+    pthread_mutex_lock(&policy_mutex);
+    cached = (DIR_POLICY *) tctreeget(
+        inode_policy_cache,
+        &file_inode,
+        sizeof(unsigned long long),
+        &vsize);
+    if (cached != NULL) {
+        memcpy(&result, cached,
+               sizeof(DIR_POLICY));
+        pthread_mutex_unlock(&policy_mutex);
+        return result;
+    }
+    pthread_mutex_unlock(&policy_mutex);
+
+    /* Resolve top-level directory */
+    top_ino = toplevel_dir_for_inode(file_inode);
+    if (top_ino == 0)
+        goto cache_and_return;
+
+    /* Look up directory policy */
+    dir_pol = get_dir_policy(top_ino);
+    if (dir_pol != NULL) {
+        memcpy(&result, dir_pol,
+               sizeof(DIR_POLICY));
+    }
+
+  cache_and_return:
+    /* Store in per-inode cache */
+    pthread_mutex_lock(&policy_mutex);
+    tctreeput(inode_policy_cache,
+              &file_inode,
+              sizeof(unsigned long long),
+              &result, sizeof(DIR_POLICY));
+    pthread_mutex_unlock(&policy_mutex);
+    return result;
+}
+
+void invalidate_policy_cache(
+    unsigned long long file_inode)
+{
+    pthread_mutex_lock(&policy_mutex);
+    tctreeout(inode_policy_cache,
+              &file_inode,
+              sizeof(unsigned long long));
+    pthread_mutex_unlock(&policy_mutex);
+}
+
+/*
+ * lfscompress_policy: like lfscompress but takes an
+ * explicit compression type parameter.
+ */
+DAT *lfscompress_policy(unsigned char *dbdata,
+    unsigned long dsize, unsigned char comp)
+{
+    DAT *compressed = NULL;
+#ifdef ENABLE_CRYPTO
+    DAT *encrypted;
+#endif
+
+    switch (comp) {
+    case 'L':
+#ifdef LZO
+        compressed =
+            (DAT *) lzo_compress(dbdata, dsize);
+#else
+        LFATAL("lessfs is compiled without "
+               "support for LZO");
+        db_close(0);
+        exit(EXIT_DATAERR);
+#endif
+        break;
+    case 'Q':
+        compressed =
+            (DAT *) clz_compress(dbdata, dsize);
+        break;
+    case 'R':
+        compressed =
+            (DAT *) clz15_compress(dbdata, dsize);
+        break;
+    case 'S':
+#ifdef SNAPPY
+        compressed =
+            (DAT *) lfssnappy_compress(dbdata, dsize);
+#else
+        LFATAL("lessfs is compiled without "
+               "support for SNAPPY");
+        db_close(0);
+        exit(EXIT_DATAERR);
+#endif
+        break;
+    default:
+        compressed =
+            (DAT *) tc_compress(dbdata, dsize);
+    }
+
+#ifdef ENABLE_CRYPTO
+    if (config->encryptdata) {
+        encrypted = lfsencrypt(
+            compressed->data, compressed->size);
+        DATfree(compressed);
+        return encrypted;
+    }
+#endif
+    return compressed;
+}
+
+/*
+ * load_all_policies: scan DBP for keys starting with
+ * "DIRPOL" and populate dir_policy_tree.
+ * Called at mount time from ll_init.
+ */
+void load_all_policies(void)
+{
+    /* This is implemented in the DB backend
+       (lib_lmdb.c / lib_bdb.c) because it needs
+       cursor access.  We call the backend helper. */
+    extern void load_policies_from_db(void);
+    load_policies_from_db();
+    LINFO("FLEX_COMP: loaded per-directory policies");
 }
